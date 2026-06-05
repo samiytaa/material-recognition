@@ -393,9 +393,9 @@ export default function Tab3Settings() {
                 layoutId={cat.id}
                 className="flex items-center gap-3"
                 draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragStartCapture={(e) => handleDragStart(e, idx)}
                 onDragOver={(e) => handleDragOver(e, idx)}
-                onDragEnd={handleDragEnd}
+                onDragEndCapture={handleDragEnd}
               >
                 {/* 2.1. Left custom styled wide brown input/display tag bar */}
                 <div className="flex-1 min-w-0 flex items-center bg-[#F5F0E8] border border-[#8B6F47]/40 rounded-full px-5 py-2 hover:bg-[#F0EAE0] transition-colors shadow-xs">

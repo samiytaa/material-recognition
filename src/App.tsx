@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, X, Info } from 'lucide-react';
+import { HelpCircle, X, Info, Settings } from 'lucide-react';
 import { PropItem, RecordRow } from './types';
 import Tab1Inbound from './components/Tab1Inbound';
 import Tab2Record from './components/Tab2Record';
 import Tab3Settings from './components/Tab3Settings';
 import Tab4RulesManager from './components/Tab4RulesManager';
+import Tab5Compose from './components/Tab5Compose';
+import { ProgressBar } from './components/common';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4'>('tab1');
+  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5'>('tab1');
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
+  const [isApiConfigOpen, setIsApiConfigOpen] = useState<boolean>(false);
+  const [apiEndpoint, setApiEndpoint] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('');
 
   // Tab 1 state configurations
   const [propsList, setPropsList] = useState<PropItem[]>([]);
@@ -99,7 +105,24 @@ export default function App() {
         console.error(err);
       }
     }
+    
+    // 加载 API 配置
+    const savedApiEndpoint = localStorage.getItem('apiEndpoint');
+    const savedApiKey = localStorage.getItem('apiKey');
+    const savedModel = localStorage.getItem('selectedModel');
+    if (savedApiEndpoint) setApiEndpoint(savedApiEndpoint);
+    if (savedApiKey) setApiKey(savedApiKey);
+    if (savedModel) setSelectedModel(savedModel);
   }, []);
+
+  // 保存 API 配置
+  const saveApiConfig = () => {
+    localStorage.setItem('apiEndpoint', apiEndpoint);
+    localStorage.setItem('apiKey', apiKey);
+    localStorage.setItem('selectedModel', selectedModel);
+    addLog('API 配置已保存');
+    setIsApiConfigOpen(false);
+  };
 
   return (
     <div id="root-container" className="min-h-screen bg-[#FAF7F2] text-[#674b2d] flex flex-row relative overflow-hidden font-sans pr-1">
@@ -182,10 +205,35 @@ export default function App() {
               <span className="text-[9px] opacity-75">✦</span>
               ④ 规则
             </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('tab5');
+                addLog('一键切页：⑤ 图鉴合成');
+              }}
+              className={`header-left cursor-pointer transition-all duration-300 font-bold px-4 py-1.5 text-xs rounded-md select-none tracking-wider flex items-center gap-1.5 ${
+                activeTab === 'tab5'
+                ? 'bg-plum-deep text-white shadow-sm shadow-[#443B43]/20 font-extrabold border border-[#443B43]'
+                : 'bg-white/40 hover:bg-[#FAF2E5] text-gray-500 hover:text-[#5C534C] border border-transparent'
+              }`}
+            >
+              <span className="text-[9px] opacity-75">✦</span>
+              ⑤ 图鉴合成
+            </button>
           </div>
 
           {/* Right Accented Status & Help Panel */}
           <div className="flex items-center gap-3">
+            {/* API 配置按钮 */}
+            <button
+              onClick={() => setIsApiConfigOpen(true)}
+              className="px-3 py-1.2 bg-gradient-to-r from-[#E8F5E9] to-[#C8E6C9] hover:from-[#C8E6C9] hover:to-[#A5D6A7] text-[#2E7D32] border border-[#A5D6A7] rounded-lg text-xs font-bold tracking-wider hover:shadow-xs transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center gap-1.5 select-none leading-normal"
+              title="配置 API 端点和密钥"
+            >
+              <Settings size={13} className="text-[#2E7D32]" />
+              <span>API 配置</span>
+            </button>
+            
             {/* Elegant Help rules trigger button with compressed padding */}
             <button
               onClick={() => setIsHelpOpen(true)}
@@ -280,7 +328,7 @@ export default function App() {
               >
                 <Tab3Settings />
               </motion.div>
-            ) : (
+            ) : activeTab === 'tab4' ? (
               <motion.div
                 key="tab4"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -291,39 +339,26 @@ export default function App() {
               >
                 <Tab4RulesManager />
               </motion.div>
+            ) : (
+              <motion.div
+                key="tab5"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 flex flex-col min-h-0 overflow-hidden"
+              >
+                <Tab5Compose />
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* Bottom progress bar container */}
-        <AnimatePresence>
-          {progressBarVisible && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 15 }}
-              id="progressBarContainer"
-              className="progress-bar-container bg-[#FFFBF0] border border-[#ECDDB9] rounded-2xl p-4 mt-4 flex items-center gap-4 shadow-md z-30 justify-between decorative-corners"
-            >
-              <span className="progress-bar-label font-serif font-bold text-[#A67020] text-xs flex items-center gap-1.5">
-                <span>🕊️</span>
-                我是进度条（安心感）
-              </span>
-              <div className="progress-bar flex-1 h-5 bg-white border border-[#EADBCC] rounded-full overflow-hidden relative shadow-inner">
-                <div 
-                  id="progressBarFill" 
-                  className="progress-bar-fill h-full bg-gradient-to-r from-[#D4AF37] to-[#C59F4A] transition-all duration-200 flex items-center justify-center text-[10px] font-bold text-white shadow-inner"
-                  style={{ width: `${progressPercent}%` }}
-                >
-                  <span id="progressBarFillText">{progressPercent}%</span>
-                </div>
-                <div id="progressBarText" className="progress-bar-text absolute inset-0 flex items-center justify-center text-[10px] font-bold text-amber-900/30 pointer-events-none">
-                  {progressPercent}%
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <ProgressBar
+          visible={progressBarVisible}
+          percent={progressPercent}
+        />
 
       </main>
 
@@ -461,6 +496,120 @@ export default function App() {
                   className="px-6 py-2 bg-[#9E4A4A] hover:bg-[#B34A4A] text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
                 >
                   合上书卷 (我知道了)
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* API 配置弹窗 */}
+      <AnimatePresence>
+        {isApiConfigOpen && (
+          <div className="fixed inset-0 bg-[#3C353B]/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+              className="bg-[#FAF7F2] border-2 border-[#DFD2BD] rounded-2xl w-full max-w-xl flex flex-col overflow-hidden shadow-2xl relative"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#2E7D32] via-[#388E3C] to-[#2E7D32] py-4 px-6 text-white border-b border-[#A5D6A7]/30 flex items-center justify-between select-none">
+                <div className="flex items-center gap-2">
+                  <Settings size={18} className="text-[#C8E6C9]" />
+                  <span className="font-serif font-bold text-sm sm:text-base tracking-widest text-[#C8E6C9]">
+                    API 配置
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsApiConfigOpen(false)}
+                  className="p-1 hover:bg-white/10 rounded-full transition-colors text-white/80 hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                {/* API 端点 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-[#5C534C] flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#2E7D32]" />
+                    API 端点
+                  </label>
+                  <input
+                    type="text"
+                    value={apiEndpoint}
+                    onChange={(e) => setApiEndpoint(e.target.value)}
+                    placeholder="https://example.com/v1"
+                    className="w-full px-4 py-2.5 bg-white border border-[#E9DFD0] rounded-lg text-sm text-[#5C534C] focus:outline-none focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32]/20 transition-all"
+                  />
+                  <p className="text-xs text-[#8B6F47] pl-2">输入 API 服务的完整地址</p>
+                </div>
+
+                {/* API Key */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-[#5C534C] flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#2E7D32]" />
+                    API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="••••••••••••••••••••••••••"
+                    className="w-full px-4 py-2.5 bg-white border border-[#E9DFD0] rounded-lg text-sm text-[#5C534C] focus:outline-none focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32]/20 transition-all font-mono"
+                  />
+                  <p className="text-xs text-[#8B6F47] pl-2">输入您的 API 密钥（将安全存储在本地）</p>
+                </div>
+
+                {/* 模型选择 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-[#5C534C] flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#2E7D32]" />
+                    模型
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    placeholder="请输入模型名称，例如：gpt-4o"
+                    className="w-full px-4 py-2.5 bg-white border border-[#E9DFD0] rounded-lg text-sm text-[#5C534C] focus:outline-none focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32]/20 transition-all"
+                  />
+                  <p className="text-xs text-[#8B6F47] pl-2">选择要使用的 AI 模型</p>
+                </div>
+
+                {/* 说明提示 */}
+                <div className="bg-[#E8F5E9] border border-[#A5D6A7] rounded-lg p-3 mt-4">
+                  <div className="flex items-start gap-2">
+                    <Info size={14} className="text-[#2E7D32] mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-[#2E7D32] leading-relaxed">
+                      <p className="font-bold mb-1">配置说明：</p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        <li>所有配置信息将保存在浏览器本地存储中</li>
+                        <li>请确保 API 端点地址正确且可访问</li>
+                        <li>Key 相关的信息请妥善保管，不要泄露给他人</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-[#DFD2BD]/60 bg-[#FAF8F4] py-3.5 px-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsApiConfigOpen(false)}
+                  className="px-5 py-2 bg-white hover:bg-gray-50 text-[#5C534C] text-xs font-bold rounded-xl cursor-pointer transition-all border border-[#E9DFD0] hover:border-[#DFD2BD]"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={saveApiConfig}
+                  className="px-6 py-2 bg-[#2E7D32] hover:bg-[#388E3C] text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  保存配置
                 </button>
               </div>
 
