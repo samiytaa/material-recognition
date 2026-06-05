@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@theme {
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-serif: "Noto Serif SC", "Georgia", serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-gold-deep: #A67C33;
+  --color-gold-light: #FBF4E6;
+  --color-gold-medium: #DFD2BD;
+  --color-gold-shiny: #D4AF37;
+  --color-plum-deep: #443B43;
+  --color-brown-deep: #674b2d;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #DFD2BD;
+  border-radius: 4px;
+  border: 1px solid #FAF7F2;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C5B198;
+}
+
+/* Custom styles representing the screenshots: Traditional Cloud Pattern / Parchment Overlay */
+.traditional-shadow {
+  box-shadow: 0 4px 20px -2px rgba(140, 107, 83, 0.12), 0 2px 6px -1px rgba(140, 107, 83, 0.08);
+}
+
+.china-border {
+  border: 1px solid rgba(212, 197, 179, 0.6);
+  position: relative;
+}
+
+.china-border::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border: 1px solid rgba(212, 197, 179, 0.25);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Sub-card decorative corner dots */
+.decorative-corners {
+  position: relative;
+}
+.decorative-corners::before {
+  content: '✦';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 8px;
+  color: #C5B198;
+  opacity: 0.6;
+}
+.decorative-corners::after {
+  content: '✦';
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  font-size: 8px;
+  color: #C5B198;
+  opacity: 0.6;
+}
+
+/* Golden overlay text for badges */
+.gold-accent-text {
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+}
