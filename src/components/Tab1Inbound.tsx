@@ -20,7 +20,7 @@ import {
   Package,
   RefreshCw
 } from 'lucide-react';
-import { PropItem, parseFileName } from '../types';
+import { PropItem, parseFileName, reloadRules } from '../types';
 import LogSidebar from './LogSidebar';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -76,6 +76,7 @@ interface Tab1InboundProps {
   addLog: (msg: string) => void;
   clearLogs: () => void;
   clearAllProps: () => void;
+  onImportToTab2?: (images: Array<{ image: string; name: string }>) => void;
 }
 
 export default function Tab1Inbound({
@@ -90,7 +91,8 @@ export default function Tab1Inbound({
   logs,
   addLog,
   clearLogs,
-  clearAllProps
+  clearAllProps,
+  onImportToTab2
 }: Tab1InboundProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -341,7 +343,9 @@ export default function Tab1Inbound({
       return;
     }
 
-    addLog(`开始重新解析 ${validProps.length} 个图片...`);
+    // 刷新规则（从 localStorage 读取最新的自定义规则）
+    reloadRules();
+    addLog(`开始重新解析 ${validProps.length} 个图片（已加载最新规则）...`);
     
     const updatedProps = validProps.map((prop, index) => {
       const parseResult = parseFileName(prop.name);
@@ -418,6 +422,30 @@ export default function Tab1Inbound({
       addLog(`✗ 导出失败: ${error}`);
       alert('导出失败，请查看控制台日志');
     }
+  };
+
+  // 导入图片到Tab2
+  const importToTab2 = () => {
+    const validProps = propsList.filter(p => p.image !== null);
+    if (validProps.length === 0) {
+      addLog('没有可导入的图片');
+      alert('请先导入图片后再导入到Tab2');
+      return;
+    }
+
+    if (!onImportToTab2) {
+      addLog('导入到Tab2功能未配置');
+      return;
+    }
+
+    const imagesToImport = validProps.map(prop => ({
+      image: prop.image!,
+      name: prop.displayName
+    }));
+
+    onImportToTab2(imagesToImport);
+    addLog(`✓ 成功导入 ${validProps.length} 张图片到Tab2的道具原图列`);
+    alert(`成功导入 ${validProps.length} 张图片到Tab2！`);
   };
 
   return (
@@ -856,17 +884,17 @@ export default function Tab1Inbound({
         {/* Locked bottom submit / commit button action block */}
         <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent">
           <button
-            onClick={exportImagesToZip}
+            onClick={importToTab2}
             disabled={totalCount === 0}
-            id="exportButton"
+            id="importToTab2Button"
             className={`w-full py-3 px-4 rounded-xl text-xs font-bold tracking-widest uppercase shadow transition-all duration-200 cursor-pointer text-center flex items-center justify-center gap-2 ${
               totalCount > 0 
-                ? 'bg-gradient-to-r from-[#D4AF37] to-[#C59F4A] hover:to-[#B48F3A] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
+                ? 'bg-gradient-to-r from-[#7B68EE] to-[#6A5ACD] hover:to-[#5B4BBD] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
                 : 'bg-[#EDE9E3] text-[#AFA498] shadow-none cursor-not-allowed border border-[#DFD2BD]'
             }`}
           >
-            <Package size={16} />
-            导出图片为 ZIP
+            <Download size={16} />
+            导入到 Tab2
           </button>
         </div>
       </div>

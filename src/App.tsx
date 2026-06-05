@@ -5,9 +5,10 @@ import { PropItem, RecordRow } from './types';
 import Tab1Inbound from './components/Tab1Inbound';
 import Tab2Record from './components/Tab2Record';
 import Tab3Settings from './components/Tab3Settings';
+import Tab4RulesManager from './components/Tab4RulesManager';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3'>('tab1');
+  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4'>('tab1');
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
 
   // Tab 1 state configurations
@@ -177,6 +178,21 @@ export default function App() {
               <span className="text-[9px] opacity-75">✦</span>
               ③ 设置
             </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('tab4');
+                addLog('一键切页：④ 规则');
+              }}
+              className={`header-left cursor-pointer transition-all duration-300 font-bold px-4 py-1.5 text-xs rounded-md select-none tracking-wider flex items-center gap-1.5 ${
+                activeTab === 'tab4'
+                ? 'bg-plum-deep text-white shadow-sm shadow-[#443B43]/20 font-extrabold border border-[#443B43]'
+                : 'bg-white/40 hover:bg-[#FAF2E5] text-gray-500 hover:text-[#5C534C] border border-transparent'
+              }`}
+            >
+              <span className="text-[9px] opacity-75">✦</span>
+              ④ 规则
+            </button>
           </div>
 
           {/* Right Accented Status & Help Panel */}
@@ -221,6 +237,44 @@ export default function App() {
                   addLog={addLog}
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
+                  onImportToTab2={(images) => {
+                    // 将图片导入到 Tab2 的道具原图列
+                    setRecordList(prev => {
+                      const updated = [...prev];
+                      
+                      // 如果导入的图片数量超过现有行数，需要扩展行数
+                      if (images.length > updated.length) {
+                        const additionalRowsNeeded = images.length - updated.length;
+                        for (let i = 0; i < additionalRowsNeeded; i++) {
+                          updated.push({
+                            id: updated.length,
+                            originalImage: null,
+                            screenshot: null,
+                            propName: '',
+                            baseColor: '金',
+                            category: '家具类',
+                            previewWithBase: null,
+                            outputName: ''
+                          });
+                        }
+                      }
+                      
+                      // 填充图片数据
+                      images.forEach((img, index) => {
+                        if (index < updated.length) {
+                          updated[index] = {
+                            ...updated[index],
+                            originalImage: img.image,
+                            propName: img.name
+                          };
+                        }
+                      });
+                      return updated;
+                    });
+                    // 切换到 Tab2
+                    setActiveTab('tab2');
+                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片到道具原图列`);
+                  }}
                 />
               </motion.div>
             ) : activeTab === 'tab2' ? (
@@ -245,7 +299,7 @@ export default function App() {
                   setSelectedPart={setSelectedRecordPart}
                 />
               </motion.div>
-            ) : (
+            ) : activeTab === 'tab3' ? (
               <motion.div
                 key="tab3"
                 initial={{ opacity: 0, y: 15 }}
@@ -255,6 +309,17 @@ export default function App() {
                 className="flex-1 flex flex-col min-h-0 overflow-hidden"
               >
                 <Tab3Settings />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="tab4"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 flex flex-col min-h-0 overflow-hidden"
+              >
+                <Tab4RulesManager />
               </motion.div>
             )}
           </AnimatePresence>

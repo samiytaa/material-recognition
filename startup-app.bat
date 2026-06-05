@@ -66,6 +66,7 @@ echo 正在启动开发服务器...
 echo ----------------------------------------
 echo.
 echo 服务地址: http://localhost:3000
+echo 局域网地址: 启动后查看终端显示
 echo.
 echo [提示] 服务器启动后将自动打开浏览器
 echo [提示] 按 Ctrl+C 可停止服务器
@@ -73,11 +74,11 @@ echo.
 echo ========================================
 echo.
 
-:: 后台启动浏览器（延迟5秒等待服务器启动）
-start /b cmd /c "timeout /t 5 /nobreak >nul && start http://localhost:3000"
+:: 后台启动浏览器（延迟8秒等待服务器启动）
+start /b cmd /c "timeout /t 8 /nobreak >nul && start http://localhost:3000"
 
-:: 启动 Vite 开发服务器
-call npm run dev
+:: 启动 Vite 开发服务器（确保绑定到 0.0.0.0:3000）
+call npm run dev -- --open=false
 
 :: 如果服务器异常退出
 if errorlevel 1 (
