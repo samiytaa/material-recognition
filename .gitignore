@@ -6,11 +6,18 @@ html/node_modules/
 build/
 dist/
 coverage/
+*.tsbuildinfo
+.cache/
+.temp/
+.nyc_output/
 
 # 系统文件
 .DS_Store
+.Spotlight-V100
+.Trashes
 Thumbs.db
 desktop.ini
+ehthumbs.db
 
 # 日志
 *.log
@@ -29,6 +36,7 @@ yarn-error.log*
 .idea/
 *.swp
 *.swo
+*~
 
 # Kiro
 .kiro/
@@ -45,3 +53,6 @@ html/
 # 临时脚本
 create-repo.cjs
 create-repo.ps1
+
+# Vite 临时文件
+vite.config.ts.timestamp-*

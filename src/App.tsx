@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, X, Info, Settings } from 'lucide-react';
+import { HelpCircle, X, Info, Settings, RefreshCw } from 'lucide-react';
 import { PropItem, RecordRow } from './types';
 import Tab1Inbound from './components/Tab1Inbound';
 import Tab2Record from './components/Tab2Record';
@@ -16,6 +16,8 @@ export default function App() {
   const [apiEndpoint, setApiEndpoint] = useState<string>('');
   const [apiKey, setApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isFetchingModels, setIsFetchingModels] = useState<boolean>(false);
 
   // Tab 1 state configurations
   const [propsList, setPropsList] = useState<PropItem[]>([]);
@@ -110,9 +112,21 @@ export default function App() {
     const savedApiEndpoint = localStorage.getItem('apiEndpoint');
     const savedApiKey = localStorage.getItem('apiKey');
     const savedModel = localStorage.getItem('selectedModel');
+    const savedModels = localStorage.getItem('availableModels');
+    
     if (savedApiEndpoint) setApiEndpoint(savedApiEndpoint);
     if (savedApiKey) setApiKey(savedApiKey);
     if (savedModel) setSelectedModel(savedModel);
+    
+    // 加载上次拉取的模型列表
+    if (savedModels) {
+      try {
+        const parsedModels = JSON.parse(savedModels);
+        setAvailableModels(parsedModels);
+      } catch (err) {
+        console.error('加载模型列表失败:', err);
+      }
+    }
   }, []);
 
   // 保存 API 配置
@@ -120,8 +134,94 @@ export default function App() {
     localStorage.setItem('apiEndpoint', apiEndpoint);
     localStorage.setItem('apiKey', apiKey);
     localStorage.setItem('selectedModel', selectedModel);
-    addLog('API 配置已保存');
+    
+    // 保存时重新排序模型列表，将当前选择的模型置顶
+    if (availableModels.length > 0 && selectedModel) {
+      const sortedModels = sortModels(availableModels, selectedModel);
+      setAvailableModels(sortedModels);
+      localStorage.setItem('availableModels', JSON.stringify(sortedModels));
+    }
+    
+    addLog(`API 配置已保存${selectedModel ? `，当前模型: ${selectedModel}` : ''}`);
     setIsApiConfigOpen(false);
+  };
+
+  // 模型排序函数：将上次选择的模型排在最前面，其余按字母顺序排序
+  const sortModels = (models: string[], lastSelected: string | null): string[] => {
+    const sorted = [...models].sort((a, b) => {
+      // 优先级1: 上次选择的模型排第一
+      if (lastSelected) {
+        if (a === lastSelected) return -1;
+        if (b === lastSelected) return 1;
+      }
+      
+      // 优先级2: 按字母顺序排序
+      return a.localeCompare(b, 'en', { sensitivity: 'base' });
+    });
+    
+    return sorted;
+  };
+
+  // 拉取可用模型列表
+  const fetchAvailableModels = async () => {
+    if (!apiEndpoint || !apiKey) {
+      addLog('[错误] 请先填写 API 端点和密钥');
+      return;
+    }
+
+    setIsFetchingModels(true);
+    addLog('[开始] 正在拉取可用模型列表...');
+
+    try {
+      const response = await fetch(`${apiEndpoint}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // 适配不同的API响应格式
+      let models: string[] = [];
+      if (data.data && Array.isArray(data.data)) {
+        // OpenAI 格式
+        models = data.data.map((m: any) => m.id || m.name || m).filter(Boolean);
+      } else if (Array.isArray(data.models)) {
+        // 其他格式
+        models = data.models.map((m: any) => typeof m === 'string' ? m : (m.id || m.name)).filter(Boolean);
+      } else if (Array.isArray(data)) {
+        models = data.map((m: any) => typeof m === 'string' ? m : (m.id || m.name)).filter(Boolean);
+      }
+
+      // 排序：上次选择的模型排第一，其余按字母顺序
+      const sortedModels = sortModels(models, selectedModel || null);
+      
+      setAvailableModels(sortedModels);
+      // 保存模型列表到本地存储
+      localStorage.setItem('availableModels', JSON.stringify(sortedModels));
+      
+      // 如果有上次选择的模型且在列表中，自动选择它
+      if (selectedModel && sortedModels.includes(selectedModel)) {
+        addLog(`[成功] 获取到 ${sortedModels.length} 个可用模型，已自动选择上次使用的模型: ${selectedModel}`);
+      } else if (sortedModels.length > 0) {
+        // 如果没有上次选择的模型，自动选择第一个
+        setSelectedModel(sortedModels[0]);
+        addLog(`[成功] 获取到 ${sortedModels.length} 个可用模型，已自动选择: ${sortedModels[0]}`);
+      } else {
+        addLog(`[成功] 获取到 ${sortedModels.length} 个可用模型`);
+      }
+    } catch (error: any) {
+      addLog(`[错误] 拉取模型失败: ${error.message}`);
+      console.error('拉取模型失败:', error);
+    } finally {
+      setIsFetchingModels(false);
+    }
   };
 
   return (
@@ -571,29 +671,57 @@ export default function App() {
                     <span className="h-1.5 w-1.5 rounded-full bg-[#2E7D32]" />
                     模型
                   </label>
-                  <input
-                    type="text"
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    placeholder="请输入模型名称，例如：gpt-4o"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E9DFD0] rounded-lg text-sm text-[#5C534C] focus:outline-none focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32]/20 transition-all"
-                  />
-                  <p className="text-xs text-[#8B6F47] pl-2">选择要使用的 AI 模型</p>
-                </div>
-
-                {/* 说明提示 */}
-                <div className="bg-[#E8F5E9] border border-[#A5D6A7] rounded-lg p-3 mt-4">
-                  <div className="flex items-start gap-2">
-                    <Info size={14} className="text-[#2E7D32] mt-0.5 flex-shrink-0" />
-                    <div className="text-xs text-[#2E7D32] leading-relaxed">
-                      <p className="font-bold mb-1">配置说明：</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li>所有配置信息将保存在浏览器本地存储中</li>
-                        <li>请确保 API 端点地址正确且可访问</li>
-                        <li>Key 相关的信息请妥善保管，不要泄露给他人</li>
-                      </ul>
-                    </div>
+                  <div className="flex gap-2">
+                    {availableModels.length > 0 ? (
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="flex-1 px-4 py-2.5 bg-white border border-[#E9DFD0] rounded-lg text-sm text-[#5C534C] focus:outline-none focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32]/20 transition-all"
+                      >
+                        <option value="">请选择模型</option>
+                        {availableModels.map((model, index) => (
+                          <option key={model} value={model}>
+                            {index === 0 && model === localStorage.getItem('selectedModel') 
+                              ? `⭐ ${model} (上次选择)` 
+                              : model}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        placeholder="请输入模型名称，例如：gpt-4o"
+                        className="flex-1 px-4 py-2.5 bg-white border border-[#E9DFD0] rounded-lg text-sm text-[#5C534C] focus:outline-none focus:border-[#2E7D32] focus:ring-2 focus:ring-[#2E7D32]/20 transition-all"
+                      />
+                    )}
+                    <button
+                      onClick={fetchAvailableModels}
+                      disabled={isFetchingModels || !apiEndpoint || !apiKey}
+                      className="px-4 py-2.5 bg-[#2E7D32] hover:bg-[#388E3C] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5"
+                      title="从API端点拉取可用模型列表"
+                    >
+                      {isFetchingModels ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>拉取中...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw size={14} />
+                          <span>拉取模型</span>
+                        </>
+                      )}
+                    </button>
                   </div>
+                  <p className="text-xs text-[#8B6F47] pl-2">
+                    {availableModels.length > 0 
+                      ? selectedModel 
+                        ? `已选择: ${selectedModel} | 共 ${availableModels.length} 个可用模型（自动排序）` 
+                        : `已获取 ${availableModels.length} 个可用模型（按字母排序）`
+                      : '点击"拉取模型"按钮从API获取可用模型列表，会自动记忆您的选择'}
+                  </p>
                 </div>
               </div>
 
