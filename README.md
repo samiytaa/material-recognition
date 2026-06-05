@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# 入库道具素材管理面板
 
-# Run and deploy your AI Studio app
+Wiki 道具素材的入库、追记与分类管理工具。
 
-This contains everything you need to run your app locally.
+## 功能
 
-View your app in AI Studio: https://ai.studio/apps/44834f76-0562-44e5-ab42-3f5867805e51
+- **① 入库**：批量拖入/上传图片，按文件名规则自动解析分类（家具/其他/初见日），支持关键词搜索与 ZIP 导出
+- **② 追记**：表格式记录道具名、底色、分类，支持图片上传与加底预览，可批量导出
+- **③ 设置**：管理底图分组素材与分类列表
 
-## Run Locally
+## 本地运行
 
-**Prerequisites:**  Node.js
+前提：Node.js
 
+```bash
+npm install
+npm run dev
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+浏览器访问 `http://localhost:3000`

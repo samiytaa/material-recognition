@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import parseConfig from './parseConfig.json';
 import categoryConfig from './categoryConfig.json';
 
