@@ -12,6 +12,7 @@ import {
   Bookmark, 
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   X,
   Info,
   Download,
@@ -23,12 +24,50 @@ import { PropItem, parseFileName } from '../types';
 import LogSidebar from './LogSidebar';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import categoryConfig from '../categoryConfig.json';
+
+// ---- 分类配置类型定义 ----
+type CategoryConfig = {
+  [level1: string]: string[] | { [level2: string]: string[] | { [level3: string]: string[] } };
+};
+
+// 从 categoryConfig.json 提取扁平化的一级/二级结构
+// level1: 男主类 / 密探类 / 头像类 / 活动类 / 其他类 / 家具
+// level2: 对应子项
+function buildCategoryTree(config: any): { level1: string; level2: string[] }[] {
+  const tree: { level1: string; level2: string[] }[] = [];
+  // "除家具以外的道具" 下的各一级分类
+  const nonFurniture = config['除家具以外的道具'] || {};
+  for (const [l1, children] of Object.entries(nonFurniture)) {
+    if (Array.isArray(children)) {
+      tree.push({ level1: l1, level2: children as string[] });
+    }
+  }
+  // "家具" 单独处理：把 套装/自由装修 的所有叶子铺开成二级
+  const furniture = config['家具'] || {};
+  const furnitureL2: string[] = [];
+  for (const [l2, sub] of Object.entries(furniture)) {
+    if (Array.isArray(sub)) {
+      // 套装：["户内","户外"]
+      (sub as string[]).forEach(s => furnitureL2.push(`${l2}·${s}`));
+    } else if (typeof sub === 'object') {
+      // 自由装修
+      for (const [l3, items] of Object.entries(sub as object)) {
+        if (Array.isArray(items)) {
+          (items as string[]).forEach(s => furnitureL2.push(`${l3}·${s}`));
+        }
+      }
+    }
+  }
+  tree.push({ level1: '家具', level2: furnitureL2 });
+  return tree;
+}
 
 interface Tab1InboundProps {
   propsList: PropItem[];
   setPropsList: React.Dispatch<React.SetStateAction<PropItem[]>>;
-  currentFilter: 'all' | 'furniture' | 'other' | 'growth';
-  setCurrentFilter: (f: 'all' | 'furniture' | 'other' | 'growth') => void;
+  currentFilter: { level1: string; level2: string | null };
+  setCurrentFilter: (f: { level1: string; level2: string | null }) => void;
   searchKeyword: string;
   setSearchKeyword: (k: string) => void;
   previewIndex: number | null;
@@ -57,16 +96,45 @@ export default function Tab1Inbound({
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [uploadMode, setUploadMode] = useState<'image' | 'folder'>('image');
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
+  // 展开的一级分类
+  const [expandedL1, setExpandedL1] = useState<string | null>(null);
+
+  // 构建分类树
+  const categoryTree = buildCategoryTree(categoryConfig);
 
   // Filter & Search matching
-  const filteredProps = propsList.map((prop, idx) => ({ prop, idx })).filter(({ prop, idx }) => {
+  const filteredProps = propsList.map((prop, idx) => ({ prop, idx })).filter(({ prop }) => {
     let showByFilter = true;
-    if (currentFilter === 'furniture') {
-      showByFilter = prop.type === 'furniture';
-    } else if (currentFilter === 'other') {
-      showByFilter = prop.type === 'other' || !prop.image;
-    } else if (currentFilter === 'growth') {
-      showByFilter = prop.isGrowthProp;
+    if (currentFilter.level1 !== 'all') {
+      // 根据 displayName / category / type 做简单匹配
+      const l1 = currentFilter.level1;
+      const l2 = currentFilter.level2;
+
+      if (l1 === '家具') {
+        showByFilter = prop.type === 'furniture';
+        if (showByFilter && l2) {
+          // l2 格式为 "套装·户内" 或 "起居" 等，尝试匹配 category
+          const subLabel = l2.includes('·') ? l2.split('·')[1] : l2;
+          showByFilter = prop.category === subLabel || prop.category === l2;
+        }
+      } else {
+        // 非家具：用一级分类名匹配，或直接用二级分类匹配 category/displayName
+        if (l2) {
+          showByFilter =
+            prop.category === l2 ||
+            prop.displayName.includes(l2);
+        } else {
+          // 只选了一级，显示该大类下所有
+          const treeNode = categoryTree.find(n => n.level1 === l1);
+          if (treeNode) {
+            showByFilter = treeNode.level2.some(sub =>
+              prop.category === sub || prop.displayName.includes(sub)
+            );
+          } else {
+            showByFilter = prop.type !== 'furniture';
+          }
+        }
+      }
     }
 
     let showBySearch = true;
@@ -380,34 +448,116 @@ export default function Tab1Inbound({
       {/* Left Content Column */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Style selection buttons container */}
-        <div className="flex flex-wrap gap-2 items-center justify-between mb-4 bg-white/40 p-2 rounded-xl china-border">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { id: 'all', label: '全部' },
-              { id: 'furniture', label: '家具' },
-              { id: 'other', label: '其他道具' },
-              { id: 'growth', label: '初见日' }
-            ].map(item => (
+        <div className="flex flex-wrap gap-2 items-start justify-between mb-4 bg-white/40 p-2 rounded-xl china-border">
+          {/* 分类筛选器：一级 + 二级 */}
+          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+            {/* 一级分类行 */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {/* 全部 */}
               <button
-                key={item.id}
                 onClick={() => {
-                  setCurrentFilter(item.id as any);
-                  setIsLogPanelOpen(false); // 切换时自动收起日志
-                  addLog(`筛选变更为: ${item.label}`);
+                  setCurrentFilter({ level1: 'all', level2: null });
+                  setExpandedL1(null);
+                  setIsLogPanelOpen(false);
+                  addLog('筛选变更为: 全部');
                 }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-                  currentFilter === item.id 
-                  ? 'bg-plum-deep text-white shadow-sm' 
-                  : 'bg-[#F2ECE4] text-[#674b2d] hover:bg-[#EADBCC]'
+                className={`px-3 py-1 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                  currentFilter.level1 === 'all'
+                    ? 'bg-plum-deep text-white shadow-sm'
+                    : 'bg-[#F2ECE4] text-[#674b2d] hover:bg-[#EADBCC]'
                 }`}
               >
-                {item.label}
+                全部
               </button>
-            ))}
+
+              {/* 各一级分类 */}
+              {categoryTree.map(node => {
+                const isActiveL1 = currentFilter.level1 === node.level1;
+                const isExpanded = expandedL1 === node.level1;
+                return (
+                  <button
+                    key={node.level1}
+                    onClick={() => {
+                      if (isExpanded) {
+                        // 再次点击收起，同时清空二级筛选保留一级
+                        setExpandedL1(null);
+                      } else {
+                        setExpandedL1(node.level1);
+                        setCurrentFilter({ level1: node.level1, level2: null });
+                        setIsLogPanelOpen(false);
+                        addLog(`筛选变更为: ${node.level1}`);
+                      }
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                      isActiveL1
+                        ? 'bg-plum-deep text-white shadow-sm'
+                        : 'bg-[#F2ECE4] text-[#674b2d] hover:bg-[#EADBCC]'
+                    }`}
+                  >
+                    {node.level1}
+                    <ChevronDown
+                      size={11}
+                      className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 二级分类行（动态展开） */}
+            <AnimatePresence>
+              {expandedL1 && (() => {
+                const node = categoryTree.find(n => n.level1 === expandedL1);
+                if (!node) return null;
+                return (
+                  <motion.div
+                    key={expandedL1}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-wrap gap-1 pt-1 pl-2 border-l-2 border-[#C59F4A]/30">
+                      {/* 二级「全部」 */}
+                      <button
+                        onClick={() => {
+                          setCurrentFilter({ level1: expandedL1, level2: null });
+                          addLog(`筛选变更为: ${expandedL1} > 全部`);
+                        }}
+                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-all duration-150 cursor-pointer ${
+                          currentFilter.level1 === expandedL1 && currentFilter.level2 === null
+                            ? 'bg-gold-deep text-white shadow-sm'
+                            : 'bg-[#FAF2E5] text-[#8E6B3A] hover:bg-[#F0E4CC]'
+                        }`}
+                      >
+                        全部
+                      </button>
+                      {node.level2.map(sub => (
+                        <button
+                          key={sub}
+                          onClick={() => {
+                            setCurrentFilter({ level1: expandedL1, level2: sub });
+                            addLog(`筛选变更为: ${expandedL1} > ${sub}`);
+                          }}
+                          className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-all duration-150 cursor-pointer ${
+                            currentFilter.level2 === sub
+                              ? 'bg-gold-deep text-white shadow-sm'
+                              : 'bg-[#FAF2E5] text-[#8E6B3A] hover:bg-[#F0E4CC]'
+                          }`}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </AnimatePresence>
           </div>
 
           {/* 清空图片按钮 */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0 items-start pt-0.5">
             <button
               onClick={reparseAllImages}
               disabled={totalCount === 0}

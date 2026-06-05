@@ -13,7 +13,7 @@ export default function App() {
   // Tab 1 state configurations
   const [propsList, setPropsList] = useState<PropItem[]>([]);
 
-  const [currentFilter, setCurrentFilter] = useState<'all' | 'furniture' | 'other' | 'growth'>('all');
+  const [currentFilter, setCurrentFilter] = useState<{ level1: string; level2: string | null }>({ level1: 'all', level2: null });
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [logs, setLogs] = useState<string[]>(['系统初始化完成']);
