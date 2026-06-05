@@ -30,7 +30,7 @@ interface RulesData {
 
 const TAB_CONFIGS: Array<{ id: MappingType; label: string; description: string; color: string }> = [
   { id: 'maleLeads',   label: '男主映射',   description: '拼音 → 男主中文名', color: '#D86B6B' },
-  { id: 'spyNames',    label: '密探名映射', description: '拼音 → 密探中文名', color: '#4A9B7A' },
+  { id: 'spyNames',    label: '密探名映射', description: '拼音 → 密探中文名', color: '#8B6F47' },
   { id: 'outdoorCats', label: '户外分类',   description: '代码 → 户外分类名', color: '#C59F4A' },
   { id: 'indoorCats',  label: '户内分类',   description: '代码 → 户内分类名', color: '#4F73C7' },
   { id: 'floorCats',   label: '地板分类',   description: '代码 → 地板分类名', color: '#9E4A4A' },
@@ -274,7 +274,7 @@ export default function Tab4RulesManager() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             className={`fixed top-14 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 z-50 ${
-              notice.type === 'success' ? 'bg-[#4A9B7A] text-white' :
+              notice.type === 'success' ? 'bg-[#8B6F47] text-white' :
               notice.type === 'error' ? 'bg-[#D86B6B] text-white' :
               'bg-[#C59F4A] text-white'
             }`}
@@ -435,7 +435,7 @@ export default function Tab4RulesManager() {
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={handleSaveEdit}
-                              className="px-3 py-1 bg-[#4A9B7A] hover:bg-[#3E8569] text-white rounded-md font-semibold transition-all"
+                              className="px-3 py-1 bg-[#8B6F47] hover:bg-[#6F5839] text-white rounded-md font-semibold transition-all"
                             >
                               <Save size={12} />
                             </button>

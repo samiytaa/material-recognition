@@ -281,11 +281,7 @@ export default function Tab1Inbound({
   };
 
   const triggerUpload = () => {
-    if (uploadMode === 'image') {
-      fileInputRef.current?.click();
-    } else {
-      folderInputRef.current?.click();
-    }
+    fileInputRef.current?.click();
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -717,8 +713,10 @@ export default function Tab1Inbound({
                     </div>
 
                     {/* Prop name */}
-                    <div className="prop-name mt-2 text-[11px] font-bold text-[#674b2d] text-center w-full truncate px-1 group-hover:text-gold-deep transition-colors">
-                      {prop.displayName}
+                    <div className="mt-2 text-center w-full px-1">
+                      <div className="text-[11px] font-bold text-[#674b2d] truncate group-hover:text-gold-deep transition-colors">
+                        {prop.displayName}
+                      </div>
                     </div>
                   </motion.div>
                 );
@@ -756,44 +754,8 @@ export default function Tab1Inbound({
             </div>
           </div>
 
-          {/* Drag & Drop action area with tab switcher */}
+          {/* Drag & Drop action area */}
           <div className="bg-white/70 border-2 border-[#DFD2BD] rounded-2xl overflow-hidden flex-shrink-0">
-            {/* Tab switcher header */}
-            <div className="flex border-b border-[#DFD2BD] bg-[#FAF8F5]">
-              <button
-                onClick={() => {
-                  setUploadMode('image');
-                  addLog('切换上传模式：图片');
-                }}
-                className={`flex-1 px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
-                  uploadMode === 'image'
-                    ? 'bg-white text-gold-deep border-b-2 border-gold-deep'
-                    : 'text-[#8E8276] hover:bg-white/50'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1.5">
-                  <FileUp size={14} />
-                  <span>上传图片</span>
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setUploadMode('folder');
-                  addLog('切换上传模式：文件夹');
-                }}
-                className={`flex-1 px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
-                  uploadMode === 'folder'
-                    ? 'bg-white text-gold-deep border-b-2 border-gold-deep'
-                    : 'text-[#8E8276] hover:bg-white/50'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1.5">
-                  <FileUp size={14} />
-                  <span>上传文件夹</span>
-                </div>
-              </button>
-            </div>
-
             {/* Upload area content */}
             <div
               id="dragArea"
@@ -801,27 +763,14 @@ export default function Tab1Inbound({
               onDragLeave={onDragOver}
               onDrop={onDrop}
               onClick={triggerUpload}
-              className="drag-area group flex flex-col items-center justify-center p-3 text-center cursor-pointer transition-all duration-200 hover:bg-gold-light"
+              className="drag-area group flex flex-col items-center justify-center py-16 px-6 text-center cursor-pointer transition-all duration-200 hover:bg-gold-light"
             >
-              {uploadMode === 'image' ? (
-                <>
-                  <span className="text-xs font-bold text-[#674b2d] tracking-wide mb-0.5">
-                    支持拖入图片
-                  </span>
-                  <span className="text-[10px] font-medium text-gold-deep/70">
-                    或点击窗口选择图片文件
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-xs font-bold text-[#674b2d] tracking-wide mb-0.5">
-                    支持拖入文件夹
-                  </span>
-                  <span className="text-[10px] font-medium text-gold-deep/70">
-                    或点击窗口选择文件夹
-                  </span>
-                </>
-              )}
+              <span className="text-sm font-bold text-[#674b2d] tracking-wide mb-1">
+                支持拖入图片
+              </span>
+              <span className="text-xs font-medium text-gold-deep/70">
+                或点击窗口选择图片文件
+              </span>
             </div>
           </div>
 
@@ -839,17 +788,28 @@ export default function Tab1Inbound({
                 </div>
 
                 {/* 信息卡片 */}
-                <div className="bg-[#FAF4EA] border border-[#ECDDB9] rounded-xl p-2.5 shadow-sm">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="font-bold text-[#8E8276] text-[10px]">展示名称:</span>
-                    <span className="font-bold text-[#674b2d] text-[11px]">{previewProp.displayName}</span>
+                <div className="bg-[#FAF4EA] border border-[#ECDDB9] rounded-xl p-3 shadow-sm">
+                  {/* 居中显示的展示名称 */}
+                  <div className="text-center mb-2">
+                    <span className="font-bold text-[#674b2d] text-base block leading-tight">{previewProp.displayName}</span>
+                  </div>
+
+                  {/* 原文件名 */}
+                  <div className="flex items-center justify-center gap-1 mb-1.5">
+                    <span className="font-semibold text-[#8E8276] text-[11px]">原文件名:</span>
+                    <span className="text-[11px] text-gray-500 font-mono">{previewProp.name}</span>
+                  </div>
+
+                  {/* 分类 */}
+                  <div className="flex items-center justify-center gap-1 mb-2">
+                    <span className="font-semibold text-[#8E8276] text-[11px]">分类:</span>
+                    <span className="font-bold text-[#674b2d] text-[11px]">{previewProp.category}</span>
                   </div>
 
                   {previewProp.type === 'furniture' && (
-                    <div className="flex flex-wrap gap-1 mb-1.5">
-                      <span className="text-[9px] font-bold bg-[#FAF2E5] text-gold-deep border border-[#E9DFCB] px-1.5 py-0.5 rounded-full">{previewProp.category}</span>
+                    <div className="flex flex-wrap gap-1 justify-center">
                       {previewProp.maleLead && (
-                        <span className="text-[9px] font-bold bg-[#E6F3EE] text-[#4A9B7A] border border-[#CEEBE0] px-1.5 py-0.5 rounded-full">{previewProp.maleLead}</span>
+                        <span className="text-[9px] font-bold bg-[#F5F0E8] text-[#8B6F47] border border-[#D4C4AA] px-1.5 py-0.5 rounded-full">{previewProp.maleLead}</span>
                       )}
                       {previewProp.isGrowthProp && (
                         <span className="text-[9px] font-bold bg-[#FFEBEB] text-[#D86B6B] border border-[#FFD1D1] px-1.5 py-0.5 rounded-full">初见日</span>
@@ -859,10 +819,6 @@ export default function Tab1Inbound({
                       )}
                     </div>
                   )}
-
-                  <div className="text-[9px] text-gray-400 font-mono truncate">
-                    {previewProp.name}
-                  </div>
                 </div>
               </>
             ) : (

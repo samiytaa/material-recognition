@@ -66,46 +66,47 @@ export default function Tab2Record({
     return null;
   };
 
-  // Multiple files uploading from side drop/click hint
+  // Multiple screenshot files uploading from side drop/click hint
   const handleBatchImageUpload = (files: FileList) => {
     const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
     if (fileArray.length === 0) return;
 
-    addRecordLog(`开始上传 ${fileArray.length} 张图片...`);
+    addRecordLog(`开始上传 ${fileArray.length} 张游戏截图...`);
     showProgressBar();
 
     let uploadedCount = 0;
+    const newRows: RecordRow[] = [];
     
-    // Process each image file sequentially and populate first available empty originalImage slots
+    // Process each image file and create new rows with screenshot
     fileArray.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
+        
+        // Extract name without extension
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
 
-        setRecordList(prev => {
-          const updated = [...prev];
-          // Find first row index that does not have an original image
-          const emptyRowIndex = updated.findIndex((r, idx) => idx >= uploadedCount && !r.originalImage);
-          const targetIndex = emptyRowIndex !== -1 ? emptyRowIndex : (uploadedCount % updated.length);
-
-          if (targetIndex < updated.length) {
-            updated[targetIndex] = {
-              ...updated[targetIndex],
-              originalImage: dataUrl
-            };
-          }
-          return updated;
-        });
+        newRows[index] = {
+          id: Date.now() + index, // Use timestamp to ensure unique IDs
+          originalImage: null,
+          screenshot: dataUrl, // 放到游戏截图列
+          propName: nameWithoutExt,
+          baseColor: '金',
+          category: '家具类',
+          previewWithBase: null,
+          outputName: `${nameWithoutExt}_金`
+        };
 
         uploadedCount++;
         updateProgress(uploadedCount, fileArray.length);
         
-        // Output row assignment trace
-        addRecordLog(`[${uploadedCount}/${fileArray.length}] 上传到第 ${uploadedCount} 行: ${file.name}`);
+        addRecordLog(`[${uploadedCount}/${fileArray.length}] 导入游戏截图: ${file.name}`);
 
         if (uploadedCount === fileArray.length) {
+          // Add all new rows at once
+          setRecordList(prev => [...prev, ...newRows]);
           hideProgressBar();
-          addRecordLog(`✓ 图片批量上传完成，共 ${uploadedCount} 张`);
+          addRecordLog(`✓ 游戏截图批量上传完成，创建了 ${uploadedCount} 个新条目`);
         }
       };
       reader.readAsDataURL(file);
@@ -143,8 +144,28 @@ export default function Tab2Record({
     }
   };
 
+  // Delete a single row
+  const deleteRow = (rowId: number) => {
+    const row = recordList[rowId];
+    if (confirm(`确定要删除第 ${rowId + 1} 行（${row.propName || '未命名'}）吗？`)) {
+      setRecordList(prev => prev.filter((_, idx) => idx !== rowId));
+      addRecordLog(`已删除第 ${rowId + 1} 行（${row.propName || '未命名'}）`);
+      
+      // Clear preview if deleted row was selected
+      if (selectedPart?.rowId === rowId) {
+        setSelectedPart(null);
+      }
+    }
+  };
+
   // Simulated AI match algorithm (exact replication)
   const runAiMatch = () => {
+    if (recordList.length === 0) {
+      alert('请先上传图片或从Tab1导入后再进行AI匹配');
+      addRecordLog('AI匹配失败：没有条目');
+      return;
+    }
+
     const filledRowsCount = recordList.filter(row => row.originalImage !== null).length;
     if (filledRowsCount === 0) {
       alert('请先上传图片后再进行AI匹配');
@@ -215,6 +236,12 @@ export default function Tab2Record({
 
   // Custom watermark background addition (replicating exact action)
   const addWatermarkBase = () => {
+    if (recordList.length === 0) {
+      alert('请先上传图片或从Tab1导入后再加底');
+      addRecordLog('加底失败：没有条目');
+      return;
+    }
+
     const readyRowsCount = recordList.filter(row => row.originalImage && row.propName).length;
     if (readyRowsCount === 0) {
       alert('请先上传图片并填写道具名后再加底');
@@ -345,6 +372,18 @@ export default function Tab2Record({
     }
   };
 
+  // Drag and drop handlers
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files) {
+      handleBatchImageUpload(e.dataTransfer.files);
+    }
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 min-h-0 flex-1 overflow-hidden relative">
       {/* Target hidden cell uploaders */}
@@ -377,6 +416,7 @@ export default function Tab2Record({
           <table className="record-table w-full border-collapse bg-white table-fixed relative">
             <thead className="sticky top-0 z-20 shadow-sm bg-[#FAF8F4]">
               <tr>
+                <th className="w-[40px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">操作</th>
                 <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">道具原图</th>
                 <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">游戏截图</th>
                 <th className="w-[140px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">道具名</th>
@@ -387,11 +427,35 @@ export default function Tab2Record({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F2ECE5]">
-              {recordList.map((row, idx) => (
+              {recordList.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="text-gold-deep/40 flex items-center gap-2">
+                        <FileImage size={24} />
+                      </div>
+                      <div className="text-sm font-bold text-[#A67020]">暂无追记条目</div>
+                      <div className="text-xs text-[#C5B198]">请从 Tab1 导入图片，或使用右侧上传按钮添加图片</div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                recordList.map((row, idx) => (
                 <tr 
                   key={row.id}
                   className="hover:bg-[#FDFBF8]/80 group transition-all"
                 >
+                  {/* 删除按钮列 */}
+                  <td className="p-2 border border-[#F2ECE5] text-center w-[40px]">
+                    <button
+                      onClick={() => deleteRow(idx)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center mx-auto"
+                      title="删除此行"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+
                   {/* Item Original Thumbnail */}
                   <td className="p-2 border border-[#F2ECE5] text-center">
                     <div 
@@ -560,7 +624,7 @@ export default function Tab2Record({
                     />
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -572,23 +636,28 @@ export default function Tab2Record({
         {/* Scrollable Upper Control Panel content */}
         <div className="flex-1 overflow-y-auto pr-1 space-y-3">
           
-          {/* Bulk uploader banner */}
-          <div 
-            id="uploadHintArea"
-            onClick={handleManualUploadTrigger}
-            className="upload-hint group bg-white hover:bg-gold-light border-2 border-dashed border-[#DFD2BD] hover:border-gold-shiny rounded-2xl p-4 text-center cursor-pointer transition-all duration-300 shadow-sm"
-          >
-            <div className="upload-hint-title font-serif text-sm font-bold text-gold-deep flex items-center justify-center gap-1.5 mb-1 bg-gold-light/40 py-1.5 rounded-xl group-hover:bg-gold-shiny group-hover:text-white transition-all duration-300">
-              <UploadCloud size={16} />
-              ① 传载图
+          {/* Bulk uploader banner - 与 Tab1 样式一致 */}
+          <div className="bg-white/70 border-2 border-[#DFD2BD] rounded-2xl overflow-hidden flex-shrink-0">
+            <div
+              id="uploadHintArea"
+              onDragOver={onDragOver}
+              onDragLeave={onDragOver}
+              onDrop={onDrop}
+              onClick={handleManualUploadTrigger}
+              className="drag-area group flex flex-col items-center justify-center py-16 px-6 text-center cursor-pointer transition-all duration-200 hover:bg-gold-light"
+            >
+              <span className="text-sm font-bold text-[#674b2d] tracking-wide mb-1">
+                支持拖入游戏截图
+              </span>
+              <span className="text-xs font-medium text-gold-deep/70">
+                或点击窗口选择图片文件
+              </span>
+              {recordList.length > 0 && (
+                <div className="mt-3 text-[10px] text-gold-deep/70 font-semibold bg-[#FAF8F4] py-1 px-3 rounded-lg border border-[#E9DFD0]">
+                  当前共 {recordList.length} 个条目
+                </div>
+              )}
             </div>
-            <span className="text-[11px] font-bold text-[#674b2d] block mt-2">
-              1. 支持点击多张图片批量并上传填表
-            </span>
-            <p className="upload-hint-sub text-[10px] text-gray-400 font-medium leading-relaxed mt-1">
-              2. 识别素材并自动填表到对应道具<br />
-              (背景纯色、素材居中且外有留白自动抠图)
-            </p>
           </div>
 
           {/* Large Image Showcase Drawer */}
@@ -622,7 +691,7 @@ export default function Tab2Record({
             <button
               onClick={runAiMatch}
               id="aiMatchBtn"
-              className="action-btn px-3 py-2 bg-[#E6F3EE] hover:bg-[#DEEFE8] border border-[#CEEBE0] text-[#4A9B7A] rounded-xl text-xs font-bold tracking-wider hover:shadow transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-center"
+              className="action-btn px-3 py-2 bg-[#F5F0E8] hover:bg-[#F0EAE0] border border-[#D4C4AA] text-[#8B6F47] rounded-xl text-xs font-bold tracking-wider hover:shadow transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-center"
             >
               AI匹配
             </button>

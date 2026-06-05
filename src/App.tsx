@@ -20,18 +20,7 @@ export default function App() {
   const [logs, setLogs] = useState<string[]>(['系统初始化完成']);
 
   // Tab 2 state configurations
-  const [recordList, setRecordList] = useState<RecordRow[]>(() => {
-    return Array.from({ length: 15 }, (_, i) => ({
-      id: i,
-      originalImage: null,
-      screenshot: null,
-      propName: '',
-      baseColor: '金',
-      category: '家具类',
-      previewWithBase: null,
-      outputName: ''
-    }));
-  });
+  const [recordList, setRecordList] = useState<RecordRow[]>([]);
 
   const [recordLogs, setRecordLogs] = useState<string[]>(['Tab2 追记系统初始化完成']);
   const [selectedRecordPart, setSelectedRecordPart] = useState<{ rowId: number; type: 'original' | 'screenshot' } | null>(null);
@@ -238,42 +227,23 @@ export default function App() {
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
                   onImportToTab2={(images) => {
-                    // 将图片导入到 Tab2 的道具原图列
+                    // 将图片导入到 Tab2 的道具原图列，直接创建新条目
                     setRecordList(prev => {
-                      const updated = [...prev];
-                      
-                      // 如果导入的图片数量超过现有行数，需要扩展行数
-                      if (images.length > updated.length) {
-                        const additionalRowsNeeded = images.length - updated.length;
-                        for (let i = 0; i < additionalRowsNeeded; i++) {
-                          updated.push({
-                            id: updated.length,
-                            originalImage: null,
-                            screenshot: null,
-                            propName: '',
-                            baseColor: '金',
-                            category: '家具类',
-                            previewWithBase: null,
-                            outputName: ''
-                          });
-                        }
-                      }
-                      
-                      // 填充图片数据
-                      images.forEach((img, index) => {
-                        if (index < updated.length) {
-                          updated[index] = {
-                            ...updated[index],
-                            originalImage: img.image,
-                            propName: img.name
-                          };
-                        }
-                      });
-                      return updated;
+                      const newRows = images.map((img, index) => ({
+                        id: prev.length + index,
+                        originalImage: img.image,
+                        screenshot: null,
+                        propName: img.name,
+                        baseColor: '金',
+                        category: '家具类',
+                        previewWithBase: null,
+                        outputName: `${img.name}_金`
+                      }));
+                      return [...prev, ...newRows];
                     });
                     // 切换到 Tab2
                     setActiveTab('tab2');
-                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片到道具原图列`);
+                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片，创建了 ${images.length} 个新条目`);
                   }}
                 />
               </motion.div>
@@ -449,7 +419,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex items-start gap-2 pt-2.5 border-t border-dashed border-[#DFD2BD]/60">
-                      <Info size={14} className="text-[#4A9B7A] mt-0.5 flex-shrink-0" />
+                      <Info size={14} className="text-[#8B6F47] mt-0.5 flex-shrink-0" />
                       <div>
                         <span className="font-bold text-[#5C534C]">实时更新与同步：</span>
                         <ul className="list-disc pl-4 mt-1 space-y-1">

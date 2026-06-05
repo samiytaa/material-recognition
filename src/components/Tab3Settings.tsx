@@ -253,7 +253,7 @@ export default function Tab3Settings() {
             initial={{ opacity: 0, y: -15, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.95 }}
-            className="fixed top-14 left-1/2 -translate-x-1/2 bg-[#4A9B7A] text-white px-5 py-2.5 rounded-full text-xs font-bold tracking-wider shadow-lg flex items-center gap-2 z-40"
+            className="fixed top-14 left-1/2 -translate-x-1/2 bg-[#8B6F47] text-white px-5 py-2.5 rounded-full text-xs font-bold tracking-wider shadow-lg flex items-center gap-2 z-40"
           >
             <Sparkles size={14} className="text-[#FFF2C5]" />
             <span>{notice}</span>
@@ -274,16 +274,16 @@ export default function Tab3Settings() {
       {/* BLOCK 1: TOP BACKGROUND IMPORT SECTION */}
       <div id="settings-block-1" className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-5 md:p-6 shadow-xs traditional-shadow relative decorative-corners">
         <div className="flex items-center justify-between border-b border-[#EEDFCA] pb-3 mb-4 select-none">
-          <div className="flex items-center gap-2 text-[#4A9B7A]">
+          <div className="flex items-center gap-2 text-[#8B6F47]">
             <span className="text-sm">✦</span>
-            <h2 className="font-serif font-bold text-[#4A9B7A] text-sm md:text-base tracking-wider">
+            <h2 className="font-serif font-bold text-[#8B6F47] text-sm md:text-base tracking-wider">
               底图导入/分类
             </h2>
           </div>
-          {/* New Group Button: Rounded Green */}
+          {/* New Group Button: Rounded Brown */}
           <button
             onClick={handleAddNewGroup}
-            className="px-4 py-1.5 bg-[#4A9B7A] hover:bg-[#3E8569] text-white text-xs font-bold rounded-full cursor-pointer transition-all hover:shadow-xs active:translate-y-0.5 flex items-center gap-1.5 shadow-sm"
+            className="px-4 py-1.5 bg-[#8B6F47] hover:bg-[#6F5839] text-white text-xs font-bold rounded-full cursor-pointer transition-all hover:shadow-xs active:translate-y-0.5 flex items-center gap-1.5 shadow-sm"
           >
             <Plus size={14} />
             <span>新建分组</span>
@@ -374,8 +374,8 @@ export default function Tab3Settings() {
       {/* BLOCK 2: MIDDLE CATEGORIES MANAGEMENT */}
       <div id="settings-block-2" className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-5 md:p-6 shadow-xs traditional-shadow relative decorative-corners flex flex-col justify-between">
         <div className="flex items-center gap-2 border-b border-[#EEDFCA] pb-3 mb-4 select-none">
-          <span className="text-sm text-[#4A9B7A]">✦</span>
-          <h2 className="font-serif font-bold text-[#4A9B7A] text-sm md:text-base tracking-wider">
+          <span className="text-sm text-[#8B6F47]">✦</span>
+          <h2 className="font-serif font-bold text-[#8B6F47] text-sm md:text-base tracking-wider">
             分类
           </h2>
         </div>
@@ -397,23 +397,23 @@ export default function Tab3Settings() {
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDragEnd={handleDragEnd}
               >
-                {/* 2.1. Left custom styled wide green input/display tag bar */}
-                <div className="flex-1 min-w-0 flex items-center bg-[#EBF5F0] border border-[#4A9B7A]/40 rounded-full px-5 py-2 hover:bg-[#E4F2EB] transition-colors shadow-xs">
+                {/* 2.1. Left custom styled wide brown input/display tag bar */}
+                <div className="flex-1 min-w-0 flex items-center bg-[#F5F0E8] border border-[#8B6F47]/40 rounded-full px-5 py-2 hover:bg-[#F0EAE0] transition-colors shadow-xs">
                   {/* Subtle drag handle representation */}
-                  <div className="mr-3 cursor-grab text-[#4A9B7A]/50 select-none hidden sm:block text-xs font-mono" title="可以上下拖拽分类条目进行排序">
+                  <div className="mr-3 cursor-grab text-[#8B6F47]/50 select-none hidden sm:block text-xs font-mono" title="可以上下拖拽分类条目进行排序">
                     ☰
                   </div>
-                  <span className="text-xs font-serif font-bold text-[#346F54] tracking-wide truncate">
+                  <span className="text-xs font-serif font-bold text-[#6F5839] tracking-wide truncate">
                     {cat.name || <span className="text-gray-400 font-sans font-normal italic">点击右侧“修改”键编辑名称</span>}
                   </span>
                 </div>
 
-                {/* 2.2. Right action buttons styled in green rounded pill set */}
+                {/* 2.2. Right action buttons styled in brown rounded pill set */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {/* Modify Button */}
                   <button
                     onClick={() => handleOpenRenameModal(cat)}
-                    className="px-3 py-1.5 bg-[#4A9B7A]/10 hover:bg-[#4A9B7A]/25 text-[#346F54] text-xs font-bold rounded-full cursor-pointer transition-all flex items-center gap-1 border border-[#4A9B7A]/20"
+                    className="px-3 py-1.5 bg-[#8B6F47]/10 hover:bg-[#8B6F47]/25 text-[#6F5839] text-xs font-bold rounded-full cursor-pointer transition-all flex items-center gap-1 border border-[#8B6F47]/20"
                     title="修改本类别名称"
                   >
                     <Edit3 size={11} />
@@ -421,11 +421,11 @@ export default function Tab3Settings() {
                   </button>
 
                   {/* Reorder arrows and indicator (Move Button) */}
-                  <div className="flex items-center bg-[#4A9B7A]/10 rounded-full border border-[#4A9B7A]/20 p-0.5">
+                  <div className="flex items-center bg-[#8B6F47]/10 rounded-full border border-[#8B6F47]/20 p-0.5">
                     <button
                       onClick={() => handleMoveCategory(idx, 'up')}
                       disabled={idx === 0}
-                      className="p-1 text-[#346F54] hover:bg-[#4A9B7A]/20 disabled:opacity-20 disabled:pointer-events-none rounded-full transition-colors cursor-pointer"
+                      className="p-1 text-[#6F5839] hover:bg-[#8B6F47]/20 disabled:opacity-20 disabled:pointer-events-none rounded-full transition-colors cursor-pointer"
                       title="向上移动"
                     >
                       <ArrowUp size={11} strokeWidth={2.5} />
@@ -433,13 +433,13 @@ export default function Tab3Settings() {
                     <button
                       onClick={() => handleMoveCategory(idx, 'down')}
                       disabled={idx === categories.length - 1}
-                      className="p-1 text-[#346F54] hover:bg-[#4A9B7A]/20 disabled:opacity-20 disabled:pointer-events-none rounded-full transition-colors cursor-pointer"
+                      className="p-1 text-[#6F5839] hover:bg-[#8B6F47]/20 disabled:opacity-20 disabled:pointer-events-none rounded-full transition-colors cursor-pointer"
                       title="向下移动"
                     >
                       <ArrowDown size={11} strokeWidth={2.5} />
                     </button>
                     <div 
-                      className="px-1.5 text-[10px] text-[#346F54] font-bold select-none cursor-grab"
+                      className="px-1.5 text-[10px] text-[#6F5839] font-bold select-none cursor-grab"
                       title="按住此区块或点击排序"
                     >
                       移动
@@ -476,8 +476,8 @@ export default function Tab3Settings() {
       {/* BLOCK 3: BOTTOM STATIC SHORTCUTS KEYBOARD LIST */}
       <div id="settings-block-3" className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-5 md:p-6 shadow-xs traditional-shadow relative decorative-corners">
         <div className="flex items-center gap-2 border-b border-[#EEDFCA] pb-3 mb-4 select-none">
-          <span className="text-sm text-[#4A9B7A]">✦</span>
-          <h2 className="font-serif font-bold text-[#4A9B7A] text-sm md:text-base tracking-wider">
+          <span className="text-sm text-[#8B6F47]">✦</span>
+          <h2 className="font-serif font-bold text-[#8B6F47] text-sm md:text-base tracking-wider">
             快捷键
           </h2>
         </div>
@@ -539,7 +539,7 @@ export default function Tab3Settings() {
                   type="text"
                   value={renameInputName}
                   onChange={(e) => setRenameInputName(e.target.value)}
-                  className="w-full bg-white border border-[#E5DEC4] rounded-lg px-3 py-2 text-xs text-[#674b2d] focus:outline-none focus:ring-1 focus:ring-[#4A9B7A]"
+                  className="w-full bg-white border border-[#E5DEC4] rounded-lg px-3 py-2 text-xs text-[#674b2d] focus:outline-none focus:ring-1 focus:ring-[#8B6F47]"
                   placeholder="请输入分类名称..."
                   autoFocus
                   onKeyDown={(e) => {
@@ -558,7 +558,7 @@ export default function Tab3Settings() {
                 </button>
                 <button
                   onClick={handleSaveRename}
-                  className="px-4 py-1.5 bg-[#4A9B7A] hover:bg-[#3E8569] text-white font-bold rounded-lg cursor-pointer shadow-xs"
+                  className="px-4 py-1.5 bg-[#8B6F47] hover:bg-[#6F5839] text-white font-bold rounded-lg cursor-pointer shadow-xs"
                 >
                   确认保存
                 </button>
