@@ -189,10 +189,6 @@ export function RulesDocsModal({ open, onClose }: RulesDocsModalProps) {
                     question="可以添加新的男主或密探吗？" 
                     answer="可以！在 Tab4 选择对应的映射表，点击新增，填写代码和中文名即可。"
                   />
-                  <FaqItem 
-                    question="什么是归属规则？" 
-                    answer="归属规则定义了每个分类如何提取归属信息（男主/密探/无）。例如「建筑」分类默认从家具格式段中提取男主信息。"
-                  />
                 </div>
               </div>
 
@@ -230,7 +226,7 @@ function ExampleCard({ title, filename, parts, result }: ExampleCardProps) {
       <div className="text-xs font-bold text-[#674b2d] mb-2">{title}</div>
       <div className="bg-white rounded p-2 mb-2 border border-[#E9DFD0]">
         <div className="text-xs text-gray-600 mb-1.5 font-mono">{filename}</div>
-        <div className="flex flex-wrap gap-1.5 text-xs">
+        <div className="flex flex-col gap-1.5 text-xs">
           {parts.map(([code, label, colorClass]) => (
             <div key={code} className="flex items-center gap-1">
               <span className={`${colorClass} px-1.5 py-0.5 rounded font-mono text-[10px]`}>{code}</span>

@@ -1,5 +1,4 @@
 import parseConfig from '../../parseConfig.json';
-import ownershipRulesConfig from '../../categoryOwnershipRules.json';
 import type { RulesData } from './types';
 
 const configToEntries = (value: Record<string, string>) =>
@@ -15,12 +14,6 @@ export function createDefaultRulesData(): RulesData {
     avatarCats: configToEntries(parseConfig['头像类映射'] || {}),
     activityCats: configToEntries(parseConfig['活动类映射'] || {}),
     otherCats: configToEntries(parseConfig['其他类映射'] || {}),
-    ownershipRules: Object.entries(ownershipRulesConfig.categoryOwnershipRules).map(([category, rule]: [string, any]) => ({
-      category,
-      defaultOwnership: rule.defaultOwnership,
-      extractFrom: rule.extractFrom,
-      allowNone: rule.allowNone,
-    })),
   };
 }
 
@@ -30,9 +23,6 @@ export function readSavedRulesData(): RulesData {
 
   try {
     const parsed = JSON.parse(saved);
-    if (!parsed.ownershipRules) {
-      parsed.ownershipRules = createDefaultRulesData().ownershipRules;
-    }
     // 确保新增的字段存在
     if (!parsed.avatarCats) {
       parsed.avatarCats = [];
@@ -60,12 +50,6 @@ export function importRulesData(imported: any): RulesData {
     avatarCats: Object.entries(imported['头像类映射'] || {}).map(([key, value]) => ({ key, value: value as string })),
     activityCats: Object.entries(imported['活动类映射'] || {}).map(([key, value]) => ({ key, value: value as string })),
     otherCats: Object.entries(imported['其他类映射'] || {}).map(([key, value]) => ({ key, value: value as string })),
-    ownershipRules: Object.entries(imported.categoryOwnershipRules || {}).map(([category, rule]: [string, any]) => ({
-      category,
-      defaultOwnership: rule.defaultOwnership,
-      extractFrom: rule.extractFrom,
-      allowNone: rule.allowNone,
-    })),
   };
 }
 
@@ -79,15 +63,5 @@ export function exportRulesData(rulesData: RulesData) {
     '头像类映射': Object.fromEntries(rulesData.avatarCats.map((entry) => [entry.key, entry.value])),
     '活动类映射': Object.fromEntries(rulesData.activityCats.map((entry) => [entry.key, entry.value])),
     '其他类映射': Object.fromEntries(rulesData.otherCats.map((entry) => [entry.key, entry.value])),
-    categoryOwnershipRules: Object.fromEntries(
-      rulesData.ownershipRules.map((rule) => [
-        rule.category,
-        {
-          defaultOwnership: rule.defaultOwnership,
-          extractFrom: rule.extractFrom,
-          ...(rule.allowNone && { allowNone: rule.allowNone }),
-        },
-      ]),
-    ),
   };
 }

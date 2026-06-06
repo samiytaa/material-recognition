@@ -33,22 +33,34 @@ function ImageReviewPane({
   const [position, setPosition] = React.useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = React.useState(false);
   const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
+  const imagePaneRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setZoom(100);
     setPosition({ x: 0, y: 0 });
   }, [imageUrl]);
 
-  const handleWheelZoom = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (!imageUrl) return;
+  React.useEffect(() => {
+    const imagePane = imagePaneRef.current;
+    if (!imagePane) return;
 
-    event.preventDefault();
-    const direction = event.deltaY < 0 ? 1 : -1;
-    setZoom(currentZoom => Math.min(
-      MAX_REVIEW_ZOOM,
-      Math.max(MIN_REVIEW_ZOOM, currentZoom + direction * REVIEW_ZOOM_STEP)
-    ));
-  };
+    const handleWheelZoom = (event: WheelEvent) => {
+      if (!imageUrl) return;
+
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1 : -1;
+      setZoom(currentZoom => Math.min(
+        MAX_REVIEW_ZOOM,
+        Math.max(MIN_REVIEW_ZOOM, currentZoom + direction * REVIEW_ZOOM_STEP)
+      ));
+    };
+
+    imagePane.addEventListener('wheel', handleWheelZoom, { passive: false });
+
+    return () => {
+      imagePane.removeEventListener('wheel', handleWheelZoom);
+    };
+  }, [imageUrl]);
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!imageUrl || zoom <= 100) return;
@@ -91,8 +103,8 @@ function ImageReviewPane({
       </div>
 
       <div
+        ref={imagePaneRef}
         className="flex min-h-[260px] flex-1 items-center justify-center overflow-auto bg-[#FAF8F4] p-4"
-        onWheel={handleWheelZoom}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

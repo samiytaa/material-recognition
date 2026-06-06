@@ -12,13 +12,6 @@ export interface FurnitureMappingEntry extends MappingEntry {
   sourceIndex: number;
 }
 
-export interface OwnershipRule {
-  category: string;
-  defaultOwnership: OwnershipValue;
-  extractFrom: string;
-  allowNone?: boolean;
-}
-
 export type MappingType =
   | 'maleLeads'
   | 'spyNames'
@@ -28,14 +21,11 @@ export type MappingType =
   | 'floorCats'
   | 'avatarCats'
   | 'activityCats'
-  | 'otherCats'
-  | 'ownershipRules';
+  | 'otherCats';
 
-export type MappingListType = Exclude<MappingType, 'ownershipRules' | 'furnitureCats'>;
+export type MappingListType = Exclude<MappingType, 'furnitureCats'>;
 
-export type EditableRuleType = MappingListType | 'ownershipRules';
-
-export type OwnershipValue = 'male_lead' | 'spy' | 'none' | 'mixed';
+export type EditableRuleType = MappingListType;
 
 export interface RulesData {
   maleLeads: MappingEntry[];
@@ -46,7 +36,6 @@ export interface RulesData {
   avatarCats: MappingEntry[];
   activityCats: MappingEntry[];
   otherCats: MappingEntry[];
-  ownershipRules: OwnershipRule[];
 }
 
 export interface TabConfig {
@@ -64,9 +53,5 @@ export type Notice = {
 
 export type EditingEntry = {
   type: EditableRuleType;
-  index: number;
-} | null;
-
-export type EditingRule = {
   index: number;
 } | null;

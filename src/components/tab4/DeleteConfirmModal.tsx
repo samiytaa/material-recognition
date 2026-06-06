@@ -1,6 +1,5 @@
 import { AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { OWNERSHIP_TYPE_OPTIONS } from './constants';
 import type { EditingEntry, MappingEntry, RulesData } from './types';
 
 interface DeleteConfirmModalProps {
@@ -27,16 +26,7 @@ export function DeleteConfirmModal({ deletingEntry, rulesData, onCancel, onConfi
             </h3>
 
             <div className="bg-[#FAF0ED] border-l-4 border-[#D86B6B] px-3 py-2 rounded-r-lg mb-4">
-              {deletingEntry.type === 'ownershipRules' ? (
-                <div className="text-xs text-[#674b2d]">
-                  <span className="font-bold">{rulesData.ownershipRules[deletingEntry.index].category}</span>
-                  <span className="block mt-1 text-gray-500">
-                    归属规则：{OWNERSHIP_TYPE_OPTIONS.find((option) => option.value === rulesData.ownershipRules[deletingEntry.index].defaultOwnership)?.label}
-                  </span>
-                </div>
-              ) : (
-                <MappingDeletePreview entry={rulesData[deletingEntry.type][deletingEntry.index]} />
-              )}
+              <MappingDeletePreview entry={rulesData[deletingEntry.type][deletingEntry.index]} />
             </div>
 
             <div className="text-[10px] text-gray-500 mb-4">此操作不可撤销，确定要删除吗？</div>

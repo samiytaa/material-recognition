@@ -438,10 +438,16 @@ export function useTab2RecordController({
 
     setRecordList(prev => {
       const updatedRows = [...prev];
+      const previousScreenshotCategory =
+        updatedRows[rowId].previousScreenshotCategory ||
+        updatedRows[rowId].screenshotCategory ||
+        DEFAULT_SCREENSHOT_CATEGORY;
       updatedRows[rowId] = {
         ...updatedRows[rowId],
         originalImage: null,
         originalImageFileName: undefined,
+        screenshotCategory: previousScreenshotCategory,
+        previousScreenshotCategory: undefined,
         matchedPropFileName: undefined,
         propName: '',
         propType: '',
@@ -542,10 +548,16 @@ export function useTab2RecordController({
     const returnableIds = new Set(returnableRows.map(({ row }) => row.id));
     setRecordList(prev => prev.map(row => {
       if (!returnableIds.has(row.id)) return row;
+      const previousScreenshotCategory =
+        row.previousScreenshotCategory ||
+        row.screenshotCategory ||
+        DEFAULT_SCREENSHOT_CATEGORY;
       return {
         ...row,
         originalImage: null,
         originalImageFileName: undefined,
+        screenshotCategory: previousScreenshotCategory,
+        previousScreenshotCategory: undefined,
         matchedPropFileName: undefined,
         propName: '',
         propType: '',
@@ -763,6 +775,10 @@ export function useTab2RecordController({
           // 更新条目信息
           setRecordList(prev => {
             const updated = [...prev];
+            const previousScreenshotCategory =
+              updated[recordIndex].previousScreenshotCategory ||
+              updated[recordIndex].screenshotCategory ||
+              DEFAULT_SCREENSHOT_CATEGORY;
             updated[recordIndex] = {
               ...updated[recordIndex],
               originalImage: `data:image/png;base64,${matchedIcon.base64}`,
@@ -773,6 +789,7 @@ export function useTab2RecordController({
               propType: matchedIcon.propType,
               propCategory: matchedIcon.propCategory,
               propRelated: matchedIcon.propRelated,
+              previousScreenshotCategory,
               screenshotCategory: matchedIcon.primaryCategory,
               outputName: recognizedName
             };

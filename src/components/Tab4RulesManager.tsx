@@ -9,7 +9,7 @@ import { RulesToolbar } from './tab4/RulesToolbar';
 import { TestRuleModal } from './tab4/TestRuleModal';
 import { FURNITURE_CATEGORY_OPTIONS, TAB_CONFIGS } from './tab4/constants';
 import { createDefaultRulesData, exportRulesData, importRulesData, readSavedRulesData } from './tab4/rulesData';
-import type { EditableRuleType, EditingEntry, EditingRule, FurnitureMappingEntry, MappingEntry, MappingListType, MappingType, Notice, OwnershipRule, OwnershipValue, RulesData } from './tab4/types';
+import type { EditableRuleType, EditingEntry, FurnitureMappingEntry, MappingEntry, MappingListType, MappingType, Notice, RulesData } from './tab4/types';
 
 export default function Tab4RulesManager() {
   const [activeTab, setActiveTab] = useState<MappingType>('maleLeads');
@@ -20,12 +20,6 @@ export default function Tab4RulesManager() {
   const [editKey, setEditKey] = useState('');
   const [editValue, setEditValue] = useState('');
   const [editFurnitureCategoryType, setEditFurnitureCategoryType] = useState(FURNITURE_CATEGORY_OPTIONS[0].value);
-
-  const [editingRule, setEditingRule] = useState<EditingRule>(null);
-  const [editCategory, setEditCategory] = useState('');
-  const [editOwnershipType, setEditOwnershipType] = useState<OwnershipValue>('none');
-  const [editExtractFrom, setEditExtractFrom] = useState('segments');
-  const [editAllowNone, setEditAllowNone] = useState(false);
 
   const [deletingEntry, setDeletingEntry] = useState<EditingEntry>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -58,25 +52,9 @@ export default function Tab4RulesManager() {
     setActiveTab(type);
     setSearchKeyword('');
     setEditingEntry(null);
-    setEditingRule(null);
   };
 
   const handleAdd = (type: MappingType) => {
-    if (type === 'ownershipRules') {
-      const newIndex = rulesData.ownershipRules.length;
-      setRulesData((prev) => ({
-        ...prev,
-        ownershipRules: [...prev.ownershipRules, { category: '', defaultOwnership: 'none', extractFrom: 'segments', allowNone: false }],
-      }));
-      setEditingRule({ index: newIndex });
-      setEditCategory('');
-      setEditOwnershipType('none');
-      setEditExtractFrom('segments');
-      setEditAllowNone(false);
-      showNotice('已添加空白归属规则，请填写内容', 'info');
-      return;
-    }
-
     const targetType = type === 'furnitureCats' ? editFurnitureCategoryType : type;
     const newIndex = mappingList(targetType as MappingListType).length;
     setRulesData((prev) => ({
@@ -91,16 +69,6 @@ export default function Tab4RulesManager() {
   };
 
   const handleEdit = (type: MappingType, index: number) => {
-    if (type === 'ownershipRules') {
-      const rule = rulesData.ownershipRules[index];
-      setEditingRule({ index });
-      setEditCategory(rule.category);
-      setEditOwnershipType(rule.defaultOwnership);
-      setEditExtractFrom(rule.extractFrom);
-      setEditAllowNone(rule.allowNone || false);
-      return;
-    }
-
     const targetType = type === 'furnitureCats' ? furnitureCategoryRows()[index].categoryType : type;
     const targetIndex = type === 'furnitureCats' ? furnitureCategoryRows()[index].sourceIndex : index;
     const entry = mappingList(targetType as MappingListType)[targetIndex];
@@ -122,7 +90,6 @@ export default function Tab4RulesManager() {
 
     const { type, index } = editingEntry;
     const isFurnitureEntry = FURNITURE_CATEGORY_OPTIONS.some((option) => option.value === type);
-    if (type === 'ownershipRules') return;
     const targetType = isFurnitureEntry ? editFurnitureCategoryType : type;
     const dataArray = mappingList(targetType);
     const hasDuplicate = dataArray.some((entry, entryIndex) => !(type === targetType && entryIndex === index) && entry.key === trimmedKey);
@@ -146,52 +113,14 @@ export default function Tab4RulesManager() {
     showNotice('保存成功', 'success');
   };
 
-  const handleSaveRuleEdit = () => {
-    if (!editingRule) return;
-
-    const trimmedCategory = editCategory.trim();
-    if (!trimmedCategory) {
-      showNotice('分类名称不能为空', 'error');
-      return;
-    }
-
-    const { index } = editingRule;
-    const hasDuplicate = rulesData.ownershipRules.some((rule, ruleIndex) => ruleIndex !== index && rule.category === trimmedCategory);
-    if (hasDuplicate) {
-      showNotice(`分类「${trimmedCategory}」已存在，请使用不同的分类名`, 'error');
-      return;
-    }
-
-    setRulesData((prev) => ({
-      ...prev,
-      ownershipRules: prev.ownershipRules.map((rule, ruleIndex) =>
-        ruleIndex === index
-          ? { category: trimmedCategory, defaultOwnership: editOwnershipType, extractFrom: editExtractFrom, allowNone: editAllowNone }
-          : rule,
-      ),
-    }));
-    setEditingRule(null);
-    showNotice('保存成功', 'success');
-  };
-
   const handleCancelEdit = () => {
     if (editingEntry) {
       const { type, index } = editingEntry;
-      if (type === 'ownershipRules') return;
       const dataArray = mappingList(type);
       if (!dataArray[index].key && !dataArray[index].value) {
         setRulesData((prev) => ({ ...prev, [type]: dataArray.filter((_, entryIndex) => entryIndex !== index) }));
       }
       setEditingEntry(null);
-      return;
-    }
-
-    if (editingRule) {
-      const { index } = editingRule;
-      if (!rulesData.ownershipRules[index].category) {
-        setRulesData((prev) => ({ ...prev, ownershipRules: prev.ownershipRules.filter((_, ruleIndex) => ruleIndex !== index) }));
-      }
-      setEditingRule(null);
     }
   };
 
@@ -199,15 +128,9 @@ export default function Tab4RulesManager() {
     if (!deletingEntry) return;
 
     const { type, index } = deletingEntry;
-    if (type === 'ownershipRules') {
-      const rule = rulesData.ownershipRules[index];
-      setRulesData((prev) => ({ ...prev, ownershipRules: prev.ownershipRules.filter((_, ruleIndex) => ruleIndex !== index) }));
-      showNotice(`已删除「${rule.category}」的归属规则`, 'success');
-    } else {
-      const entry = mappingList(type);
-      setRulesData((prev) => ({ ...prev, [type]: prev[type as MappingListType].filter((_, entryIndex) => entryIndex !== index) }));
-      showNotice(`已删除「${entry[index].key} → ${entry[index].value}」`, 'success');
-    }
+    const entry = mappingList(type);
+    setRulesData((prev) => ({ ...prev, [type]: prev[type as MappingListType].filter((_, entryIndex) => entryIndex !== index) }));
+    showNotice(`已删除「${entry[index].key} → ${entry[index].value}」`, 'success');
 
     setDeletingEntry(null);
   };
@@ -263,21 +186,14 @@ export default function Tab4RulesManager() {
   };
 
   const filteredData = useMemo(() => {
-    const currentData: Array<MappingEntry | OwnershipRule | FurnitureMappingEntry> =
-      activeTab === 'ownershipRules'
-        ? rulesData.ownershipRules
-        : activeTab === 'furnitureCats'
+    const currentData: Array<MappingEntry | FurnitureMappingEntry> =
+      activeTab === 'furnitureCats'
         ? furnitureCategoryRows()
         : mappingList(activeTab);
     if (!searchKeyword.trim()) return currentData;
 
     const keyword = searchKeyword.toLowerCase();
     return currentData.filter((item) => {
-      if (activeTab === 'ownershipRules') {
-        const rule = item as OwnershipRule;
-        return rule.category.toLowerCase().includes(keyword) || rule.defaultOwnership.toLowerCase().includes(keyword) || rule.extractFrom.toLowerCase().includes(keyword);
-      }
-
       const entry = item as MappingEntry;
       if (activeTab === 'furnitureCats') {
         const furnitureEntry = item as FurnitureMappingEntry;
@@ -318,27 +234,17 @@ export default function Tab4RulesManager() {
         rulesData={rulesData}
         searchKeyword={searchKeyword}
         editingEntry={editingEntry}
-        editingRule={editingRule}
         editKey={editKey}
         editValue={editValue}
         editFurnitureCategoryType={editFurnitureCategoryType}
-        editCategory={editCategory}
-        editOwnershipType={editOwnershipType}
-        editExtractFrom={editExtractFrom}
-        editAllowNone={editAllowNone}
         onEditKeyChange={setEditKey}
         onEditValueChange={setEditValue}
         onEditFurnitureCategoryTypeChange={setEditFurnitureCategoryType}
-        onEditCategoryChange={setEditCategory}
-        onEditOwnershipTypeChange={setEditOwnershipType}
-        onEditExtractFromChange={setEditExtractFrom}
-        onEditAllowNoneChange={setEditAllowNone}
         onEdit={handleEdit}
         onDelete={(type, index) => {
           if (type !== 'furnitureCats') setDeletingEntry({ type, index });
         }}
         onSaveEdit={handleSaveEdit}
-        onSaveRuleEdit={handleSaveRuleEdit}
         onCancelEdit={handleCancelEdit}
       />
 

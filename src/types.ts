@@ -107,6 +107,7 @@ export interface RecordRow {
   screenshot: string | null;
   screenshotOriginalName?: string; // 保存原始截图文件名
   screenshotCategory?: ScreenshotPrimaryCategory; // 截图一级分类；无分类时使用全部AI匹配候选池
+  previousScreenshotCategory?: ScreenshotPrimaryCategory; // AI匹配前的截图一级分类；退回时用于恢复
   matchedPropFileName?: string; // AI匹配命中的Tab1 icon文件名
   propName: string;
   baseColor: string;

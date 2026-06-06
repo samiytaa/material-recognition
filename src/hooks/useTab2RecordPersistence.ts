@@ -39,6 +39,7 @@ export function useTab2RecordPersistence({
           originalImageFileName: row.originalImageFileName,
           screenshotOriginalName: row.screenshotOriginalName,
           screenshotCategory: row.screenshotCategory,
+          previousScreenshotCategory: row.previousScreenshotCategory,
           matchedPropFileName: row.matchedPropFileName
         }));
 
@@ -87,6 +88,7 @@ export function useTab2RecordPersistence({
           screenshot: null,
           screenshotOriginalName: row.screenshotOriginalName,
           screenshotCategory: row.screenshotCategory || DEFAULT_SCREENSHOT_CATEGORY,
+          previousScreenshotCategory: row.previousScreenshotCategory,
           propName: row.propName || matchedProp?.displayName || '',
           baseColor: row.baseColor || '金',
           propType: row.propType || (matchedProp ? (matchedProp.type === 'furniture' ? '家具' : '其他道具') : ''),
