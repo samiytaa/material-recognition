@@ -60,6 +60,34 @@ export default function Tab3Settings() {
     }, 2500);
   };
 
+  // 清理 localStorage
+  const handleClearStorage = () => {
+    if (!confirm('确定要清理所有缓存数据吗？\n\n这将清除：\n- Tab1导入的道具列表\n- Tab2的记录列表和上传的截图\n- Tab5的上传文件\n\n注意：底图配置不会被清除')) {
+      return;
+    }
+
+    try {
+      // 清除 Tab1 数据
+      localStorage.removeItem('savedProps');
+      
+      // 清除 Tab2 数据
+      localStorage.removeItem('tab2_recordList');
+      localStorage.removeItem('tab2_uploadedScreenshots');
+      
+      // 清除 Tab5 数据
+      localStorage.removeItem('tab5_screenshot');
+      localStorage.removeItem('tab5_screenshot_base64');
+      localStorage.removeItem('tab5_icon_library');
+      
+      triggerNotice('✓ 已成功清理所有缓存数据，请刷新页面');
+      setTimeout(() => {
+        alert('缓存已清理完成！\n\n请按 F5 刷新页面以应用更改。');
+      }, 500);
+    } catch (error) {
+      triggerNotice('❌ 清理失败：' + error);
+    }
+  };
+
   // --- HANDLERS FOR SECTION 1 (MAP GROUPS) ---
   const handleAddNewGroup = () => {
     const newGroup: MapGroup = {
@@ -67,7 +95,7 @@ export default function Tab3Settings() {
       name: '新分组',
       thumbnails: []
     };
-    setGroups(prev => [...prev, newGroup]);
+    saveGroups([...groups, newGroup]);
     triggerNotice('已成功创建新分组，可上传底图并重命名');
   };
 
@@ -97,14 +125,12 @@ export default function Tab3Settings() {
           image: dataUrl,
           color: '未命名'
         };
-        setGroups(prev => {
-          const cloned = [...prev];
-          cloned[targetGroupIndex] = {
-            ...cloned[targetGroupIndex],
-            thumbnails: [...cloned[targetGroupIndex].thumbnails, newItem]
-          };
-          return cloned;
-        });
+        const cloned = [...groups];
+        cloned[targetGroupIndex] = {
+          ...cloned[targetGroupIndex],
+          thumbnails: [...cloned[targetGroupIndex].thumbnails, newItem]
+        };
+        saveGroups(cloned);
         successCount++;
         if (successCount === files.length) {
           triggerNotice(`成功导入 ${files.length} 个底图素材到「${groups[targetGroupIndex].name}」`);
@@ -116,30 +142,26 @@ export default function Tab3Settings() {
 
   // Rename Group name inline
   const handleRenameGroupInline = (index: number, newName: string) => {
-    setGroups(prev => {
-      const cloned = [...prev];
-      cloned[index] = { ...cloned[index], name: newName };
-      return cloned;
-    });
+    const cloned = [...groups];
+    cloned[index] = { ...cloned[index], name: newName };
+    saveGroups(cloned);
   };
 
   // Delete an entire Map Group
   const handleDeleteGroup = (index: number) => {
     if (confirm(`确定要删除底图分组「·${groups[index].name}」吗？`)) {
-      setGroups(prev => prev.filter((_, idx) => idx !== index));
+      saveGroups(groups.filter((_, idx) => idx !== index));
       triggerNotice('底图分组已成功移除');
     }
   };
 
   // Remove a single asset in thumbnails
   const handleRemoveAsset = (groupIndex: number, assetIndex: number) => {
-    setGroups(prev => {
-      const cloned = [...prev];
-      const thumbs = [...cloned[groupIndex].thumbnails];
-      thumbs.splice(assetIndex, 1);
-      cloned[groupIndex] = { ...cloned[groupIndex], thumbnails: thumbs };
-      return cloned;
-    });
+    const cloned = [...groups];
+    const thumbs = [...cloned[groupIndex].thumbnails];
+    thumbs.splice(assetIndex, 1);
+    cloned[groupIndex] = { ...cloned[groupIndex], thumbnails: thumbs };
+    saveGroups(cloned);
     triggerNotice('素材圆片已移除');
   };
 
@@ -153,13 +175,11 @@ export default function Tab3Settings() {
   const handleSaveColor = () => {
     if (!editingColor) return;
     const { groupIndex, itemIndex } = editingColor;
-    setGroups(prev => {
-      const cloned = [...prev];
-      const items = [...cloned[groupIndex].thumbnails];
-      items[itemIndex] = { ...items[itemIndex], color: colorInputValue.trim() || '未命名' };
-      cloned[groupIndex] = { ...cloned[groupIndex], thumbnails: items };
-      return cloned;
-    });
+    const cloned = [...groups];
+    const items = [...cloned[groupIndex].thumbnails];
+    items[itemIndex] = { ...items[itemIndex], color: colorInputValue.trim() || '未命名' };
+    cloned[groupIndex] = { ...cloned[groupIndex], thumbnails: items };
+    saveGroups(cloned);
     triggerNotice(`颜色标签已更新为「${colorInputValue.trim() || '未命名'}」`);
     setEditingColor(null);
   };
@@ -263,14 +283,12 @@ export default function Tab3Settings() {
     if (draggedBasemap.itemIndex === itemIndex) return;
 
     // 重新排序缩略图
-    setGroups(prev => {
-      const cloned = [...prev];
-      const thumbnails = [...cloned[groupIndex].thumbnails];
-      const [movedItem] = thumbnails.splice(draggedBasemap.itemIndex, 1);
-      thumbnails.splice(itemIndex, 0, movedItem);
-      cloned[groupIndex] = { ...cloned[groupIndex], thumbnails };
-      return cloned;
-    });
+    const cloned = [...groups];
+    const thumbnails = [...cloned[groupIndex].thumbnails];
+    const [movedItem] = thumbnails.splice(draggedBasemap.itemIndex, 1);
+    thumbnails.splice(itemIndex, 0, movedItem);
+    cloned[groupIndex] = { ...cloned[groupIndex], thumbnails };
+    saveGroups(cloned);
 
     setDraggedBasemap({ groupIndex, itemIndex });
   };
@@ -366,12 +384,14 @@ export default function Tab3Settings() {
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.8 }}
-                        className="group relative flex flex-col items-center select-none cursor-move"
-                        draggable
-                        onDragStart={(e) => handleBasemapDragStart(e, groupIdx, fileIdx)}
-                        onDragOver={(e) => handleBasemapDragOver(e, groupIdx, fileIdx)}
-                        onDragEnd={handleBasemapDragEnd}
                       >
+                        <div
+                          className="group relative flex flex-col items-center select-none cursor-move"
+                          draggable
+                          onDragStart={(e) => handleBasemapDragStart(e, groupIdx, fileIdx)}
+                          onDragOver={(e) => handleBasemapDragOver(e, groupIdx, fileIdx)}
+                          onDragEnd={handleBasemapDragEnd}
+                        >
                         {/* Compact thumbnail */}
                         <div className="w-14 h-14 rounded-xl border-2 border-[#E5DEC4] hover:border-[#D4A574] overflow-hidden bg-white shadow-sm hover:shadow-md flex items-center justify-center p-1 transition-all">
                           <img
@@ -414,6 +434,7 @@ export default function Tab3Settings() {
                         >
                           ✕
                         </button>
+                        </div>
                       </motion.div>
                     ))}
                   </AnimatePresence>
@@ -442,6 +463,43 @@ export default function Tab3Settings() {
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* 清理缓存按钮区域 */}
+      <div id="settings-block-cache" className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-4 shadow-xs traditional-shadow relative decorative-corners">
+        <div className="flex items-center justify-between border-b border-[#EEDFCA] pb-2 mb-3 select-none">
+          <div className="flex items-center gap-2 text-[#8B6F47]">
+            <span className="text-sm">✦</span>
+            <h2 className="font-serif font-bold text-[#8B6F47] text-sm tracking-wider">
+              缓存管理
+            </h2>
+          </div>
+        </div>
+        
+        <div className="space-y-3">
+          <div className="bg-[#FFF8E7] border border-[#FFE0A3] rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-[#FFA726] rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 size={16} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xs font-bold text-[#8B6F47] mb-1">清理所有缓存数据</h3>
+                <p className="text-[10px] text-[#674b2d] leading-relaxed mb-3">
+                  清除 Tab1、Tab2、Tab5 的所有缓存数据（包括上传的图片和记录）。底图配置不会被清除。
+                  <br />
+                  <span className="text-[#D97706] font-bold">注意：此操作不可撤销，清理后需要刷新页面！</span>
+                </p>
+                <button
+                  onClick={handleClearStorage}
+                  className="px-4 py-2 bg-gradient-to-r from-[#FFA726] to-[#FB8C00] hover:from-[#FB8C00] hover:to-[#F57C00] text-white text-xs font-bold rounded-lg cursor-pointer transition-all hover:shadow-md flex items-center gap-2"
+                >
+                  <Trash2 size={14} />
+                  清理缓存
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

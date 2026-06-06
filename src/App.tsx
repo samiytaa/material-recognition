@@ -31,24 +31,8 @@ export default function App() {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [logs, setLogs] = useState<string[]>(['系统初始化完成']);
 
-  // Tab 2 state configurations
-  const [recordList, setRecordList] = useState<RecordRow[]>(() => {
-    try {
-      const savedRecordList = localStorage.getItem('tab2_recordList');
-      if (savedRecordList) {
-        const parsed = JSON.parse(savedRecordList);
-        // 数据迁移：去掉 outputName 中的底色后缀（如 "道具名_金" -> "道具名"）
-        const migrated = parsed.map((row: RecordRow) => ({
-          ...row,
-          outputName: row.propName || row.outputName
-        }));
-        return migrated;
-      }
-    } catch (error) {
-      console.error('加载Tab2记录列表失败:', error);
-    }
-    return [];
-  });
+  // Tab 2 state configurations（不再从localStorage加载完整数据，避免存储配额问题）
+  const [recordList, setRecordList] = useState<RecordRow[]>([]);
 
   const [recordLogs, setRecordLogs] = useState<string[]>(['Tab2 追记系统初始化完成']);
   const [selectedRecordPart, setSelectedRecordPart] = useState<{ rowId: number; type: 'original' | 'screenshot' } | null>(null);
@@ -112,6 +96,32 @@ export default function App() {
 
   // Load from local storage initially
   useEffect(() => {
+    // 清理可能导致配额溢出的旧数据
+    try {
+      const oldRecordList = localStorage.getItem('tab2_recordList');
+      const oldScreenshots = localStorage.getItem('tab2_uploadedScreenshots');
+      
+      if (oldRecordList) {
+        const size = new Blob([oldRecordList]).size / (1024 * 1024);
+        if (size > 1) {
+          console.log(`清理旧的 tab2_recordList 数据 (${size.toFixed(2)}MB)`);
+          localStorage.removeItem('tab2_recordList');
+          addRecordLog(`已清理旧的大容量记录数据 (${size.toFixed(2)}MB)，请从Tab1重新导入`);
+        }
+      }
+      
+      if (oldScreenshots) {
+        const size = new Blob([oldScreenshots]).size / (1024 * 1024);
+        if (size > 1) {
+          console.log(`清理旧的 tab2_uploadedScreenshots 数据 (${size.toFixed(2)}MB)`);
+          localStorage.removeItem('tab2_uploadedScreenshots');
+          addRecordLog(`已清理旧的大容量截图数据 (${size.toFixed(2)}MB)`);
+        }
+      }
+    } catch (err) {
+      console.error('清理旧数据失败:', err);
+    }
+    
     const localProps = localStorage.getItem('savedProps');
     if (localProps) {
       try {
@@ -533,11 +543,13 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Bottom progress bar container */}
-        <ProgressBar
-          visible={progressBarVisible}
-          percent={progressPercent}
-        />
+        {/* Bottom progress bar container - 仅在非 tab2 时显示 */}
+        {activeTab !== 'tab2' && (
+          <ProgressBar
+            visible={progressBarVisible}
+            percent={progressPercent}
+          />
+        )}
 
       </main>
 

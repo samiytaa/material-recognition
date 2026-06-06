@@ -37,14 +37,42 @@ export default function Tab2Record({
   const uploadHintAreaRef = useRef<HTMLInputElement>(null);
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   
-  // 自动保存recordList到localStorage
+  // 自动保存recordList到localStorage（优化存储策略）
   useEffect(() => {
     if (recordList.length > 0) {
       try {
-        localStorage.setItem('tab2_recordList', JSON.stringify(recordList));
+        // 压缩存储：只保存关键数据，不保存完整的base64图片
+        const compressedData = recordList.map(row => ({
+          id: row.id,
+          propName: row.propName,
+          baseColor: row.baseColor,
+          propType: row.propType,
+          propCategory: row.propCategory,
+          propRelated: row.propRelated,
+          outputName: row.outputName,
+          // 保存图片的缩略信息（文件名），不保存完整base64
+          hasOriginalImage: row.originalImage !== null,
+          hasScreenshot: row.screenshot !== null,
+          hasPreview: row.previewWithBase !== null,
+          originalImageFileName: row.originalImageFileName,
+          screenshotOriginalName: row.screenshotOriginalName
+        }));
+        
+        const dataToSave = JSON.stringify(compressedData);
+        const sizeInKB = new Blob([dataToSave]).size / 1024;
+        
+        localStorage.setItem('tab2_recordList_compressed', dataToSave);
+        console.log(`✓ 已保存 ${recordList.length} 条记录的元数据 (${sizeInKB.toFixed(2)}KB)`);
       } catch (error) {
-        console.error('保存recordList失败:', error);
+        console.error('保存recordList元数据失败:', error);
+        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+          addRecordLog(`❌ 存储空间不足，无法保存记录元数据`);
+          localStorage.removeItem('tab2_recordList_compressed');
+        }
       }
+    } else {
+      // 记录为空时清除缓存
+      localStorage.removeItem('tab2_recordList_compressed');
     }
   }, [recordList]);
   
@@ -204,97 +232,19 @@ export default function Tab2Record({
     }
   }, [selectedGroupId, basemapGroups]);
   
-  // 独立存储上传的截图，不直接加入表格
+  // 独立存储上传的截图，不直接加入表格（不持久化到localStorage，仅内存存储）
   const [uploadedScreenshots, setUploadedScreenshots] = useState<Array<{
     id: number;
     name: string;
     dataUrl: string;
-  }>>(() => {
-    try {
-      const savedScreenshots = localStorage.getItem('tab2_uploadedScreenshots');
-      if (savedScreenshots) {
-        return JSON.parse(savedScreenshots);
-      }
-    } catch (error) {
-      console.error('加载上传截图列表失败:', error);
-    }
-    return [];
-  });
+  }>>([]);
   
-  // 自动保存上传的截图到localStorage（始终保存，包括空数组）
-  useEffect(() => {
-    try {
-      const dataToSave = JSON.stringify(uploadedScreenshots);
-      // 检查数据大小（localStorage通常限制5-10MB）
-      const sizeInMB = new Blob([dataToSave]).size / (1024 * 1024);
-      
-      if (sizeInMB > 5) {
-        console.warn(`截图数据过大 (${sizeInMB.toFixed(2)}MB)，可能超出localStorage限制`);
-        addRecordLog(`⚠ 截图数据过大 (${sizeInMB.toFixed(2)}MB)，保存可能失败`);
-        
-        // 超出限制时，只保留最近的截图
-        if (uploadedScreenshots.length > 10) {
-          const recentScreenshots = uploadedScreenshots.slice(-10);
-          localStorage.setItem('tab2_uploadedScreenshots', JSON.stringify(recentScreenshots));
-          addRecordLog(`⚠ 已自动清理，仅保留最近 10 张截图`);
-          setUploadedScreenshots(recentScreenshots);
-          return;
-        }
-      }
-      
-      localStorage.setItem('tab2_uploadedScreenshots', dataToSave);
-      console.log(`✓ 已保存 ${uploadedScreenshots.length} 张截图到localStorage (${sizeInMB.toFixed(2)}MB)`);
-    } catch (error) {
-      console.error('保存截图列表失败:', error);
-      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        addRecordLog('❌ 存储空间不足，无法保存截图。已自动清理部分数据');
-        
-        // 存储失败时，只保留最近的 5 张截图
-        const recentScreenshots = uploadedScreenshots.slice(-5);
-        try {
-          localStorage.setItem('tab2_uploadedScreenshots', JSON.stringify(recentScreenshots));
-          addRecordLog(`✓ 已保留最近 5 张截图`);
-          setUploadedScreenshots(recentScreenshots);
-        } catch (retryError) {
-          // 如果还是失败，清空所有截图缓存
-          localStorage.removeItem('tab2_uploadedScreenshots');
-          addRecordLog('❌ 已清空所有截图缓存，请重新上传');
-          setUploadedScreenshots([]);
-        }
-        
-        alert('存储空间不足！\n已自动压缩并清理部分数据。\n建议：\n1. 图片已自动压缩\n2. 分批上传（每次不超过10张）\n3. 及时完成识别操作后清空待处理区');
-      } else {
-        addRecordLog(`❌ 保存截图失败: ${error}`);
-      }
-    }
-  }, [uploadedScreenshots]);
+  // 禁用截图的自动保存，避免存储空间溢出
+  // 截图只在内存中保持，页面刷新后会丢失（这是预期行为，避免占用大量localStorage空间）
 
-  // 组件初始化时记录加载状态
+  // 组件初始化时记录加载状态（仅输出日志，不加载存储的图片数据）
   useEffect(() => {
-    const savedRecordList = localStorage.getItem('tab2_recordList');
-    const savedScreenshots = localStorage.getItem('tab2_uploadedScreenshots');
-    
-    if (savedRecordList) {
-      try {
-        const parsed = JSON.parse(savedRecordList);
-        if (parsed.length > 0) {
-          addRecordLog(`✓ 已从本地存储加载 ${parsed.length} 条记录`);
-        }
-      } catch (error) {
-        console.error('解析记录列表失败:', error);
-      }
-    }
-    
-    if (savedScreenshots) {
-      try {
-        const parsed = JSON.parse(savedScreenshots);
-        if (parsed.length > 0) {
-          addRecordLog(`✓ 已从本地存储加载 ${parsed.length} 张待处理截图`);
-        }
-      } catch (error) {
-        console.error('解析截图列表失败:', error);
-      }
-    }
+    addRecordLog(`ℹ Tab2已初始化（图片数据不再从本地存储加载，请从Tab1重新导入）`);
   }, []);
 
   // Track target cells being modified by file uploads
