@@ -133,7 +133,7 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
             onClick={onClose}
             className="px-6 py-2 bg-[#9E4A4A] hover:bg-[#B34A4A] text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
           >
-            合上书卷 (我知道了)
+            朕知道了
           </button>
         </div>
 
