@@ -3,7 +3,7 @@ import { Sparkles, Layers, Download, Trash2 } from 'lucide-react';
 import { RecordRow } from '../types';
 import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
-import { UploadZone, Button, Card } from './common';
+import { UploadZone, Button, Card, RecognitionProgressModal } from './common';
 import { readFileAsDataURL, getFileNameWithoutExtension } from '../utils/fileHelper';
 import categoryConfigModule from '../categoryConfig.json';
 
@@ -48,10 +48,44 @@ export default function Tab2Record({
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const uploadHintAreaRef = useRef<HTMLInputElement>(null);
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
-  const [isScreenshotListExpanded, setIsScreenshotListExpanded] = useState(true);
   
-  // 选中行管理
+  // 自动保存recordList到localStorage
+  useEffect(() => {
+    if (recordList.length > 0) {
+      try {
+        localStorage.setItem('tab2_recordList', JSON.stringify(recordList));
+      } catch (error) {
+        console.error('保存recordList失败:', error);
+      }
+    }
+  }, [recordList]);
+  
+  // 识别进度弹窗状态
+  const [recognitionProgress, setRecognitionProgress] = useState({
+    isOpen: false,
+    current: 0,
+    total: 0,
+    successCount: 0,
+    failCount: 0,
+    currentProcessing: ''
+  });
+  
+  // 选中行管理（使用 row.id 而不是索引）
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
+  
+  // 截图筛选状态：'all' | 'matched' | 'unmatched'
+  const [screenshotFilter, setScreenshotFilter] = useState<'all' | 'matched' | 'unmatched'>('all');
+  
+  // 根据筛选条件过滤记录
+  const filteredRecordList = useMemo(() => {
+    if (screenshotFilter === 'all') {
+      return recordList;
+    } else if (screenshotFilter === 'matched') {
+      return recordList.filter(row => row.screenshot !== null);
+    } else {
+      return recordList.filter(row => row.screenshot === null);
+    }
+  }, [recordList, screenshotFilter]);
   
   // 切换行选择状态
   const toggleRowSelection = (rowId: number) => {
@@ -62,12 +96,20 @@ export default function Tab2Record({
     );
   };
   
-  // 全选/取消全选
+  // 全选/取消全选（基于过滤后的列表）
   const toggleSelectAll = () => {
-    if (selectedRowIds.length === recordList.length) {
-      setSelectedRowIds([]);
+    // 获取过滤后列表中每一行的 id
+    const filteredIds = filteredRecordList.map(row => row.id);
+    
+    // 检查是否所有过滤后的行都已选中
+    const allFilteredSelected = filteredIds.every(id => selectedRowIds.includes(id));
+    
+    if (allFilteredSelected) {
+      // 取消选中所有过滤后的行
+      setSelectedRowIds(prev => prev.filter(id => !filteredIds.includes(id)));
     } else {
-      setSelectedRowIds(recordList.map((_, idx) => idx));
+      // 选中所有过滤后的行
+      setSelectedRowIds(prev => [...new Set([...prev, ...filteredIds])]);
     }
   };
   
@@ -77,7 +119,7 @@ export default function Tab2Record({
     
     if (!confirm(`确定要删除选中的 ${selectedRowIds.length} 行吗？`)) return;
     
-    setRecordList(prev => prev.filter((_, idx) => !selectedRowIds.includes(idx)));
+    setRecordList(prev => prev.filter(row => !selectedRowIds.includes(row.id)));
     addRecordLog(`已批量删除 ${selectedRowIds.length} 行`);
     setSelectedRowIds([]);
   };
@@ -162,7 +204,70 @@ export default function Tab2Record({
     id: number;
     name: string;
     dataUrl: string;
-  }>>([]);
+  }>>(() => {
+    try {
+      const savedScreenshots = localStorage.getItem('tab2_uploadedScreenshots');
+      if (savedScreenshots) {
+        return JSON.parse(savedScreenshots);
+      }
+    } catch (error) {
+      console.error('加载上传截图列表失败:', error);
+    }
+    return [];
+  });
+  
+  // 自动保存上传的截图到localStorage（始终保存，包括空数组）
+  useEffect(() => {
+    try {
+      const dataToSave = JSON.stringify(uploadedScreenshots);
+      // 检查数据大小（localStorage通常限制5-10MB）
+      const sizeInMB = new Blob([dataToSave]).size / (1024 * 1024);
+      
+      if (sizeInMB > 5) {
+        console.warn(`截图数据过大 (${sizeInMB.toFixed(2)}MB)，可能超出localStorage限制`);
+        addRecordLog(`⚠ 截图数据过大 (${sizeInMB.toFixed(2)}MB)，保存可能失败`);
+      }
+      
+      localStorage.setItem('tab2_uploadedScreenshots', dataToSave);
+      console.log(`✓ 已保存 ${uploadedScreenshots.length} 张截图到localStorage (${sizeInMB.toFixed(2)}MB)`);
+    } catch (error) {
+      console.error('保存截图列表失败:', error);
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        addRecordLog('❌ 存储空间不足，无法保存截图。请减少截图数量或清理浏览器缓存');
+        alert('存储空间不足！\n截图数据太大，无法保存到本地存储。\n建议：\n1. 减少上传的截图数量\n2. 清理浏览器缓存\n3. 尽快完成识别操作');
+      } else {
+        addRecordLog(`❌ 保存截图失败: ${error}`);
+      }
+    }
+  }, [uploadedScreenshots]);
+
+  // 组件初始化时记录加载状态
+  useEffect(() => {
+    const savedRecordList = localStorage.getItem('tab2_recordList');
+    const savedScreenshots = localStorage.getItem('tab2_uploadedScreenshots');
+    
+    if (savedRecordList) {
+      try {
+        const parsed = JSON.parse(savedRecordList);
+        if (parsed.length > 0) {
+          addRecordLog(`✓ 已从本地存储加载 ${parsed.length} 条记录`);
+        }
+      } catch (error) {
+        console.error('解析记录列表失败:', error);
+      }
+    }
+    
+    if (savedScreenshots) {
+      try {
+        const parsed = JSON.parse(savedScreenshots);
+        if (parsed.length > 0) {
+          addRecordLog(`✓ 已从本地存储加载 ${parsed.length} 张待处理截图`);
+        }
+      } catch (error) {
+        console.error('解析截图列表失败:', error);
+      }
+    }
+  }, []);
 
   // Track target cells being modified by file uploads
   const targetCellRef = useRef<{ rowId: number; type: 'original' | 'screenshot' } | null>(null);
@@ -202,7 +307,6 @@ export default function Tab2Record({
     }
 
     addRecordLog(`开始上传 ${filesToUpload.length} 张游戏截图...`);
-    showProgressBar();
 
     const newScreenshots: Array<{id: number; name: string; dataUrl: string}> = [];
     
@@ -217,12 +321,10 @@ export default function Tab2Record({
         dataUrl: dataUrl
       });
 
-      updateProgress(i + 1, filesToUpload.length);
       addRecordLog(`[${i + 1}/${filesToUpload.length}] 导入游戏截图: ${file.name}`);
     }
 
     setUploadedScreenshots(prev => [...prev, ...newScreenshots]);
-    hideProgressBar();
     addRecordLog(`✓ 游戏截图批量上传完成，已添加 ${newScreenshots.length} 张截图`);
   };
 
@@ -240,15 +342,25 @@ export default function Tab2Record({
     if (file && targetCellRef.current) {
       const { rowId } = targetCellRef.current;
       const dataUrl = await readFileAsDataURL(file);
+      const fileName = getFileNameWithoutExtension(file.name);
+      
       setRecordList(prev => {
         const updated = [...prev];
-        updated[rowId] = {
-          ...updated[rowId],
-          [type === 'original' ? 'originalImage' : 'screenshot']: dataUrl
-        };
+        if (type === 'screenshot') {
+          updated[rowId] = {
+            ...updated[rowId],
+            screenshot: dataUrl,
+            screenshotOriginalName: fileName // 保存原始文件名
+          };
+        } else {
+          updated[rowId] = {
+            ...updated[rowId],
+            originalImage: dataUrl
+          };
+        }
         return updated;
       });
-      addRecordLog(`已上传第 ${rowId + 1} 行的${type === 'original' ? '道具icon' : '游戏截图'}`);
+      addRecordLog(`已上传第 ${rowId + 1} 行的${type === 'original' ? '道具icon' : '游戏截图'}（${fileName}）`);
     }
   };
 
@@ -275,137 +387,321 @@ export default function Tab2Record({
     }
   };
 
-  // Simulated AI match algorithm - now processes uploaded screenshots
-  const runAiMatch = () => {
+  // Return screenshot from table back to uploaded screenshots list
+  const returnScreenshot = (rowId: number) => {
+    const row = recordList[rowId];
+    
+    if (!row.screenshot) {
+      addRecordLog(`⚠ 第 ${rowId + 1} 行没有截图可退回`);
+      return;
+    }
+
+    // 使用保存的原始文件名，如果没有则使用道具名或默认名称
+    const screenshotName = row.screenshotOriginalName || row.propName || `截图_${Date.now()}`;
+    
+    // 添加到待处理截图列表
+    const newScreenshot = {
+      id: Date.now(),
+      name: screenshotName,
+      dataUrl: row.screenshot
+    };
+    
+    setUploadedScreenshots(prev => [...prev, newScreenshot]);
+    
+    // 清除表格行中的截图和原始文件名
+    setRecordList(prev => {
+      const updated = [...prev];
+      updated[rowId] = {
+        ...updated[rowId],
+        screenshot: null,
+        screenshotOriginalName: undefined
+      };
+      return updated;
+    });
+    
+    addRecordLog(`✓ 已将第 ${rowId + 1} 行的截图退回到待处理列表（${screenshotName}）`);
+  };
+
+  // Clear all uploaded screenshots
+  const clearAllScreenshots = () => {
+    const count = uploadedScreenshots.length;
+    setUploadedScreenshots([]);
+    addRecordLog(`✓ 已清空所有待处理截图（共 ${count} 张）`);
+  };
+
+  // AI match algorithm - now processes uploaded screenshots using real vision API
+  const runAiMatch = async () => {
     // 优先处理上传的截图
     if (uploadedScreenshots.length > 0) {
-      if (!confirm(`检测到 ${uploadedScreenshots.length} 张待处理截图\n确定执行AI匹配吗？`)) {
+      // 检查API配置
+      const apiEndpoint = localStorage.getItem('apiEndpoint');
+      const apiKey = localStorage.getItem('apiKey');
+      const selectedModel = localStorage.getItem('selectedModel');
+
+      if (!apiEndpoint || !apiKey || !selectedModel) {
+        alert('请先在顶部导航栏的 API 配置中配置 API 并选择模型！');
+        addRecordLog('[错误] 请先配置API端点、Key并选择模型');
         return;
       }
 
-      addRecordLog(`开始AI匹配，共 ${uploadedScreenshots.length} 张截图...`);
-      showProgressBar();
+      // 从表格中提取已有的icon作为候选库
+      const tableIcons = recordList
+        .map((row, idx) => ({
+          rowIndex: idx,
+          originalImage: row.originalImage,
+          propName: row.propName,
+          category: row.category
+        }))
+        .filter(item => item.originalImage !== null);
 
-      let processedCount = 0;
-      const mockNames = ['寒潭桥', '米拱门', '莲心泉', '雕花屏风', '锦绣帷幔', '青瓷花瓶'];
-      const mockColors = availableColors.length > 0 ? availableColors : ['金', '紫', '蓝', '绿', '咖'];
-      const mockCategories = availableCategories.length > 0 ? availableCategories : ['起居', '置物', '装饰', '挂件', '男主元素', '密探礼物'];
+      if (tableIcons.length === 0) {
+        alert('表格中没有可用的道具icon！\n请先上传或添加道具icon到表格中。');
+        addRecordLog('[错误] 表格中没有道具icon');
+        return;
+      }
 
-      const intervalTime = 300;
-      const newRows: RecordRow[] = [];
-
-      const processNext = () => {
-        if (processedCount >= uploadedScreenshots.length) {
-          // 将新行添加到表格
-          setRecordList(prev => [...prev, ...newRows]);
-          // 清空已处理的截图
-          setUploadedScreenshots([]);
-          hideProgressBar();
-          addRecordLog(`✓ AI匹配完成！已处理 ${uploadedScreenshots.length} 张截图并加入表格`);
-          alert(`AI匹配完成！\n已将 ${uploadedScreenshots.length} 张截图加入表格`);
-          return;
-        }
-
-        const screenshot = uploadedScreenshots[processedCount];
-        const selectedName = mockNames[Math.floor(Math.random() * mockNames.length)];
-        const selectedColor = mockColors[Math.floor(Math.random() * mockColors.length)];
-        const selectedCategory = mockCategories[Math.floor(Math.random() * mockCategories.length)];
-
-        newRows[processedCount] = {
-          id: screenshot.id,
-          originalImage: null,
-          screenshot: screenshot.dataUrl,
-          propName: screenshot.name,
-          baseColor: selectedColor,
-          category: selectedCategory,
-          previewWithBase: null,
-          outputName: `${screenshot.name}_${selectedColor}`
-        };
-
-        processedCount++;
-        updateProgress(processedCount, uploadedScreenshots.length);
-        addRecordLog(`[${processedCount}/${uploadedScreenshots.length}] 匹配截图：${screenshot.name} - ${selectedColor} - ${selectedCategory}`);
-
-        setTimeout(processNext, intervalTime);
-      };
-
-      setTimeout(processNext, intervalTime);
-      return;
-    }
-
-    // 如果没有待处理截图，则处理表格中已有的数据
-    if (recordList.length === 0) {
-      alert('请先上传截图再进行AI匹配');
-      addRecordLog('AI匹配失败：没有待处理的截图');
-      return;
-    }
-
-    const filledRowsCount = recordList.filter(row => row.originalImage !== null).length;
-    if (filledRowsCount === 0) {
-      alert('表格中没有可匹配的图片');
-      addRecordLog('AI匹配失败：未上传图片');
-      return;
-    }
-
-    if (!confirm(`检测到 ${filledRowsCount} 行有图片\n确定执行AI匹配吗？`)) {
-      return;
-    }
-
-    addRecordLog(`开始AI匹配，共 ${filledRowsCount} 条数据...`);
-    showProgressBar();
-
-    let processedCount = 0;
-    const mockNames = ['寒潭桥', '米拱门', '莲心泉', '雕花屏风', '锦绣帷幔', '青瓷花瓶'];
-    const mockColors = availableColors.length > 0 ? availableColors : ['金', '紫', '蓝', '绿', '咖'];
-    const mockCategories = availableCategories.length > 0 ? availableCategories : ['起居', '置物', '装饰', '挂件', '男主元素', '密探礼物'];
-
-    // Create sequentially timed updates for rows that contain static images
-    const intervalTime = 300;
-    const processNext = () => {
-      // Find the next item that has original image but no prop name
-      let activeIdx = -1;
-      let checkCount = 0;
-      for (let i = 0; i < recordList.length; i++) {
-        if (recordList[i].originalImage) {
-          if (checkCount === processedCount) {
-            activeIdx = i;
-            break;
+      // 构建icon库：从表格的originalImage中提取
+      const iconLibrary: Array<{id: string; name: string; base64: string; propName: string; category: string; rowIndex: number}> = [];
+      for (const item of tableIcons) {
+        try {
+          // 提取base64（去掉data:image/xxx;base64,前缀）
+          const base64 = item.originalImage!.split(',')[1];
+          if (base64) {
+            iconLibrary.push({
+              id: `row_${item.rowIndex}`,
+              name: item.propName || `第${item.rowIndex + 1}行`,
+              base64: base64,
+              propName: item.propName || '未命名',
+              category: item.category || '未分类',
+              rowIndex: item.rowIndex
+            });
           }
-          checkCount++;
+        } catch (e) {
+          addRecordLog(`[警告] 第 ${item.rowIndex + 1} 行的icon格式异常，已跳过`);
         }
       }
 
-      if (activeIdx === -1 || processedCount >= filledRowsCount) {
-        hideProgressBar();
-        addRecordLog(`✓ AI匹配完成！已处理 ${filledRowsCount} 条记录`);
-        alert(`AI匹配完成！\n已自动填充道具名、底色、分类、输出名称`);
+      if (iconLibrary.length === 0) {
+        alert('无法解析表格中的icon数据！');
+        addRecordLog('[错误] 无法解析表格icon数据');
         return;
       }
 
-      const selectedName = mockNames[Math.floor(Math.random() * mockNames.length)];
-      const selectedColor = mockColors[Math.floor(Math.random() * mockColors.length)];
-      const selectedCategory = mockCategories[Math.floor(Math.random() * mockCategories.length)];
+      if (!confirm(`检测到 ${uploadedScreenshots.length} 张待处理截图\n将使用AI视觉识别匹配表格中的 ${iconLibrary.length} 个icon\n确定执行吗？`)) {
+        return;
+      }
 
-      setRecordList(prev => {
-        const updated = [...prev];
-        updated[activeIdx] = {
-          ...updated[activeIdx],
-          propName: selectedName,
-          baseColor: selectedColor,
-          category: selectedCategory,
-          outputName: `${selectedName}_${selectedColor}`
-        };
-        return updated;
+      addRecordLog(`========================================`);
+      addRecordLog(`[开始] 一键识别 ${uploadedScreenshots.length} 张截图`);
+      addRecordLog(`[配置] icon库: 表格中的 ${iconLibrary.length} 个候选`);
+      addRecordLog(`[配置] 批次大小: 最多5个icon/批次`);
+      addRecordLog(`[配置] 串行处理: 避免匹配冲突`);
+      
+      // 打开进度弹窗
+      setRecognitionProgress({
+        isOpen: true,
+        current: 0,
+        total: uploadedScreenshots.length,
+        successCount: 0,
+        failCount: 0,
+        currentProcessing: '准备中...'
       });
 
-      processedCount++;
-      updateProgress(processedCount, filledRowsCount);
-      addRecordLog(`[${processedCount}/${filledRowsCount}] 匹配第 ${activeIdx + 1} 行：${selectedName} - ${selectedColor} - ${selectedCategory}`);
+      // 导入识别函数
+      const { runDirectVisionMatching } = await import('../utils/visionApiHelper');
+      
+      const matchedScreenshots: Array<{screenshotIndex: number; rowIndex: number; name: string; color: string; category: string}> = [];
+      const failedList: string[] = [];
+      const usedRowIndices = new Set<number>(); // 记录已使用的表格行索引
+      
+      let successCount = 0;
+      let failCount = 0;
 
-      setTimeout(processNext, intervalTime);
-    };
+      // 更新进度的辅助函数
+      const updateRecognitionProgress = (current: number, success: number, fail: number, processing: string) => {
+        setRecognitionProgress({
+          isOpen: true,
+          current,
+          total: uploadedScreenshots.length,
+          successCount: success,
+          failCount: fail,
+          currentProcessing: processing
+        });
+        updateProgress(current, uploadedScreenshots.length);
+      };
 
-    setTimeout(processNext, intervalTime);
+      // 串行处理每个截图（避免并发导致的匹配冲突）
+      for (let index = 0; index < uploadedScreenshots.length; index++) {
+        const screenshot = uploadedScreenshots[index];
+        
+        updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+        addRecordLog(`[处理] 开始处理截图 ${index + 1}/${uploadedScreenshots.length}: ${screenshot.name}`);
+
+        try {
+          // 过滤掉已使用的icon（已匹配的表格行）
+          const availableIconLibrary = iconLibrary
+            .filter(icon => !usedRowIndices.has(icon.rowIndex));
+
+          if (availableIconLibrary.length === 0) {
+            addRecordLog(`[处理] ✗ ${screenshot.name}: 所有icon已被使用`);
+            failedList.push(`${screenshot.name} (原因: 无可用icon)`);
+            failCount++;
+            updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+            continue;
+          }
+
+          addRecordLog(`[处理] 可用icon数: ${availableIconLibrary.length}/${iconLibrary.length}`);
+
+          // 提取base64（去掉data:image/xxx;base64,前缀）
+          const base64 = screenshot.dataUrl.split(',')[1];
+
+          // 调用识别API
+          const result = await runDirectVisionMatching(
+            {
+              endpoint: apiEndpoint,
+              apiKey: apiKey,
+              model: selectedModel
+            },
+            base64,
+            availableIconLibrary.map(icon => ({
+              id: icon.id,
+              name: icon.name,
+              base64: icon.base64,
+              propName: icon.propName,
+              category: icon.category
+            })),
+            (msg) => addRecordLog(`[处理] ${msg}`),
+            5 // 批次大小：最多5个icon
+          );
+
+          if (result.success && result.color && result.iconIndex !== undefined && result.name) {
+            // 验证iconIndex的有效性
+            if (result.iconIndex < 0 || result.iconIndex >= availableIconLibrary.length) {
+              addRecordLog(`[处理] ✗ ${screenshot.name}: API返回的索引越界 (${result.iconIndex}/${availableIconLibrary.length})`);
+              failedList.push(`${screenshot.name} (原因: API返回索引无效)`);
+              failCount++;
+              updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+              continue;
+            }
+            
+            // 获取匹配到的表格行
+            const matchedIcon = availableIconLibrary[result.iconIndex];
+            const matchedRowIndex = matchedIcon.rowIndex;
+            
+            // 标记该行已使用（串行处理，无竞态条件）
+            usedRowIndices.add(matchedRowIndex);
+
+            // 判断分类
+            let detectedCategory = '其他类';
+            for (const category of availableCategories) {
+              if (result.name.includes(category)) {
+                detectedCategory = category;
+                break;
+              }
+            }
+
+            // 记录匹配结果
+            matchedScreenshots.push({
+              screenshotIndex: index,
+              rowIndex: matchedRowIndex,
+              name: result.name,
+              color: result.color,
+              category: detectedCategory
+            });
+
+            successCount++;
+            addRecordLog(`[处理] ✓ ${screenshot.name}: 匹配到第${matchedRowIndex + 1}行 (${matchedIcon.propName}) - ${result.name} - ${result.color} - ${detectedCategory}`);
+          } else {
+            // 识别失败
+            failedList.push(`${screenshot.name} (原因: ${result.error || '未知错误'})`);
+            failCount++;
+            addRecordLog(`[处理] ✗ ${screenshot.name}: ${result.error || '识别失败'}`);
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          failedList.push(`${screenshot.name} (原因: ${errorMsg})`);
+          failCount++;
+          addRecordLog(`[处理] ✗ ${screenshot.name}: 异常 - ${errorMsg}`);
+        }
+
+        updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+      }
+
+      // 保存原始截图数组的引用（避免闭包问题）
+      const originalScreenshots = [...uploadedScreenshots];
+
+      // 更新表格：将截图填入匹配的行
+      if (matchedScreenshots.length > 0) {
+        setRecordList(prev => {
+          const updated = [...prev];
+          for (const match of matchedScreenshots) {
+            const screenshot = originalScreenshots[match.screenshotIndex];
+            if (screenshot) {
+              updated[match.rowIndex] = {
+                ...updated[match.rowIndex],
+                screenshot: screenshot.dataUrl,
+                screenshotOriginalName: screenshot.name, // 保存原始文件名
+                propName: match.name,
+                baseColor: match.color,
+                category: match.category,
+                outputName: `${match.name}_${match.color}`
+              };
+            }
+          }
+          return updated;
+        });
+        
+        // 逐个移除成功识别的截图
+        const successfulScreenshotIds = matchedScreenshots.map(m => originalScreenshots[m.screenshotIndex].id);
+        setUploadedScreenshots(prev => prev.filter(s => !successfulScreenshotIds.includes(s.id)));
+      }
+      
+      // 关闭进度弹窗
+      setRecognitionProgress({
+        isOpen: false,
+        current: 0,
+        total: 0,
+        successCount: 0,
+        failCount: 0,
+        currentProcessing: ''
+      });
+      
+      hideProgressBar();
+      
+      addRecordLog(`========================================`);
+      addRecordLog(`[完成] 识别结束`);
+      addRecordLog(`[统计] 成功: ${successCount}，失败: ${failCount}，总计: ${uploadedScreenshots.length}`);
+      
+      if (successCount > 0) {
+        addRecordLog(`[已移除] ${successCount} 张成功识别的截图已从待处理区域移除并填入表格`);
+      }
+      if (failCount > 0) {
+        addRecordLog(`[保留] ${failCount} 张失败的截图保留在待处理区域`);
+      }
+      
+      if (failedList.length > 0) {
+        addRecordLog(`[失败列表]:`);
+        failedList.forEach(item => addRecordLog(`  - ${item}`));
+      }
+
+      let alertMsg = `识别完成！\n成功: ${successCount} 张（已填入表格并移除）\n失败: ${failCount} 张（保留在待处理区域）`;
+      if (matchedScreenshots.length > 0) {
+        alertMsg += `\n\n成功的截图已自动移除，失败的截图保留可继续处理`;
+      }
+      if (failedList.length > 0) {
+        alertMsg += `\n\n失败列表:\n${failedList.slice(0, 5).join('\n')}`;
+        if (failedList.length > 5) {
+          alertMsg += `\n...还有 ${failedList.length - 5} 个失败项`;
+        }
+      }
+      alert(alertMsg);
+      
+      return;
+    }
+
+    // 如果没有待处理截图，则提示用户
+    alert('请先上传游戏截图再进行AI匹配');
+    addRecordLog('AI匹配失败：没有待处理的截图');
   };
 
   // Custom watermark background addition - now saves the preview to previewWithBase
@@ -624,9 +920,58 @@ export default function Tab2Record({
       <input type="file" accept="image/*" ref={fileInputRef1} onChange={(e) => onCellFileChange(e, 'original')} className="hidden" />
       <input type="file" accept="image/*" ref={fileInputRef2} onChange={(e) => onCellFileChange(e, 'screenshot')} className="hidden" />
 
+      {/* 识别进度弹窗 */}
+      <RecognitionProgressModal
+        isOpen={recognitionProgress.isOpen}
+        current={recognitionProgress.current}
+        total={recognitionProgress.total}
+        successCount={recognitionProgress.successCount}
+        failCount={recognitionProgress.failCount}
+        currentProcessing={recognitionProgress.currentProcessing}
+      />
+
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">
-        {/* 底图组选择器和批量删除按钮 */}
-        <div className="mb-3 flex items-center gap-2">
+        {/* 筛选器和操作栏 */}
+        <div className="mb-3 flex items-center gap-3 flex-wrap">
+          {/* 截图筛选器 */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-[#674b2d] whitespace-nowrap">
+              截图筛选
+            </label>
+            <div className="flex items-center gap-1 bg-[#FAF8F4] border border-[#DFD2BD] rounded-md p-0.5">
+              <button
+                onClick={() => setScreenshotFilter('all')}
+                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                  screenshotFilter === 'all'
+                    ? 'bg-[#8B6F47] text-white shadow-sm'
+                    : 'text-[#8B6F47] hover:bg-[#F2ECE5]'
+                }`}
+              >
+                全部 ({recordList.length})
+              </button>
+              <button
+                onClick={() => setScreenshotFilter('matched')}
+                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                  screenshotFilter === 'matched'
+                    ? 'bg-[#8B6F47] text-white shadow-sm'
+                    : 'text-[#8B6F47] hover:bg-[#F2ECE5]'
+                }`}
+              >
+                已匹配 ({recordList.filter(r => r.screenshot !== null).length})
+              </button>
+              <button
+                onClick={() => setScreenshotFilter('unmatched')}
+                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                  screenshotFilter === 'unmatched'
+                    ? 'bg-[#8B6F47] text-white shadow-sm'
+                    : 'text-[#8B6F47] hover:bg-[#F2ECE5]'
+                }`}
+              >
+                未匹配 ({recordList.filter(r => r.screenshot === null).length})
+              </button>
+            </div>
+          </div>
+          
           {/* 批量删除按钮 */}
           {selectedRowIds.length > 0 && (
             <button
@@ -639,10 +984,11 @@ export default function Tab2Record({
             </button>
           )}
           
+          {/* 底图组选择器 */}
           {basemapGroups.length > 0 && (
-            <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
               <label className="text-xs font-semibold text-[#674b2d] whitespace-nowrap">
-                选择底图组：
+                底图组
               </label>
               <select
                 value={selectedGroupId}
@@ -661,36 +1007,59 @@ export default function Tab2Record({
         
         <div className="overflow-auto flex-1 border border-[#DFD2BD]/40 rounded-xl relative scrollbar-thin">
           <RecordTable
-            records={recordList}
+            records={filteredRecordList}
             availableColors={availableColors}
             availableCategories={availableCategories}
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
             selectedRowIds={selectedRowIds}
-            onToggleRowSelection={toggleRowSelection}
+            onToggleRowSelection={(filteredRowIndex) => {
+              // 通过过滤后的索引获取 row.id
+              const rowId = filteredRecordList[filteredRowIndex].id;
+              toggleRowSelection(rowId);
+            }}
             onToggleSelectAll={toggleSelectAll}
-            onViewImage={viewRowImage}
-            onUploadImage={handleCellImageUpload}
-            onUpdateRow={(rowId, updates) => {
+            onViewImage={(filteredRowIndex, type) => {
+              // 将过滤后的索引映射到原始列表索引
+              const rowId = filteredRecordList[filteredRowIndex].id;
+              const originalRowIndex = recordList.findIndex(r => r.id === rowId);
+              viewRowImage(originalRowIndex, type);
+            }}
+            onUploadImage={(filteredRowIndex, type) => {
+              // 将过滤后的索引映射到原始列表索引
+              const rowId = filteredRecordList[filteredRowIndex].id;
+              const originalRowIndex = recordList.findIndex(r => r.id === rowId);
+              handleCellImageUpload(originalRowIndex, type);
+            }}
+            onUpdateRow={(filteredRowIndex, updates) => {
+              // 将过滤后的索引映射到原始列表索引
+              const rowId = filteredRecordList[filteredRowIndex].id;
+              const originalRowIndex = recordList.findIndex(r => r.id === rowId);
               setRecordList(prev => {
                 const updated = [...prev];
-                updated[rowId] = { ...updated[rowId], ...updates };
+                updated[originalRowIndex] = { ...updated[originalRowIndex], ...updates };
                 return updated;
               });
               if (updates.baseColor) {
-                addRecordLog(`第 ${rowId + 1} 行底色变更为: ${updates.baseColor}`);
+                addRecordLog(`第 ${originalRowIndex + 1} 行底色变更为: ${updates.baseColor}`);
               }
               if (updates.category) {
-                addRecordLog(`第 ${rowId + 1} 行分类变更为: ${updates.category}`);
+                addRecordLog(`第 ${originalRowIndex + 1} 行分类变更为: ${updates.category}`);
               }
+            }}
+            onReturnScreenshot={(filteredRowIndex) => {
+              // 将过滤后的索引映射到原始列表索引
+              const rowId = filteredRecordList[filteredRowIndex].id;
+              const originalRowIndex = recordList.findIndex(r => r.id === rowId);
+              returnScreenshot(originalRowIndex);
             }}
           />
         </div>
       </Card>
 
-      <div className="w-full lg:w-80 flex flex-col gap-3 h-full overflow-hidden">
-        <div className="flex-1 overflow-y-auto pr-1 space-y-3">
-          <Card className="overflow-hidden" padding="none">
+      <div className="w-full lg:w-80 flex flex-col gap-4 relative min-h-0">
+        <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-hidden">
+          <Card className="overflow-hidden flex-shrink-0" padding="none">
             <UploadZone
               onFilesSelected={handleBatchImageUpload}
               text="支持拖入游戏截图"
@@ -700,32 +1069,40 @@ export default function Tab2Record({
 
           <ScreenshotList
             screenshots={uploadedScreenshots}
-            isExpanded={isScreenshotListExpanded}
-            onToggleExpand={() => setIsScreenshotListExpanded(!isScreenshotListExpanded)}
             onDelete={deleteScreenshot}
+            onClearAll={clearAllScreenshots}
           />
+        </div>
 
-          {selectedPart && getPreviewImage() && (
-            <div className="bg-white border border-[#DFD2BD]/60 rounded-xl shadow-sm overflow-hidden">
-              <div className="p-3 bg-[#FAF8F4] border-b border-[#E9DFDB]">
-                <h3 className="text-xs font-bold text-[#674b2d]">
-                  大图预览 - 第 {selectedPart.rowId + 1} 行 {selectedPart.type === 'original' ? '道具icon' : '游戏截图'}
-                </h3>
-              </div>
-              <div className="p-4 flex items-center justify-center bg-white max-h-[300px]">
-                <img
-                  src={getPreviewImage()!}
-                  alt="预览"
-                  className="max-w-full max-h-64 object-contain rounded"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <Button onClick={runAiMatch} icon={Sparkles} variant="primary" className="w-full">AI自动匹配</Button>
-            <Button onClick={addWatermarkBase} icon={Layers} variant="success" className="w-full">一键加底</Button>
-            <Button onClick={exportBatchFiles} icon={Download} variant="warning" className="w-full">导出文件</Button>
+        {/* Locked bottom action buttons */}
+        <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent flex-shrink-0">
+          <div className="flex gap-2">
+            <button
+              onClick={runAiMatch}
+              disabled={uploadedScreenshots.length === 0}
+              id="runAiMatchButton"
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold tracking-widest uppercase shadow transition-all duration-200 cursor-pointer text-center flex items-center justify-center gap-2 ${
+                uploadedScreenshots.length > 0 
+                  ? 'bg-gradient-to-r from-[#7B68EE] to-[#6A5ACD] hover:to-[#5B4BBD] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
+                  : 'bg-[#EDE9E3] text-[#AFA498] shadow-none cursor-not-allowed border border-[#DFD2BD]'
+              }`}
+            >
+              <Sparkles size={16} />
+              一键识别
+            </button>
+            <button
+              onClick={exportBatchFiles}
+              disabled={recordList.filter(row => row.previewWithBase && row.outputName.trim() !== '').length === 0}
+              id="exportButton"
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold tracking-widest uppercase shadow transition-all duration-200 cursor-pointer text-center flex items-center justify-center gap-2 ${
+                recordList.filter(row => row.previewWithBase && row.outputName.trim() !== '').length > 0
+                  ? 'bg-gradient-to-r from-[#F59E0B] to-[#D97706] hover:to-[#B45309] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
+                  : 'bg-[#EDE9E3] text-[#AFA498] shadow-none cursor-not-allowed border border-[#DFD2BD]'
+              }`}
+            >
+              <Download size={16} />
+              导出
+            </button>
           </div>
         </div>
       </div>

@@ -234,7 +234,7 @@ async function runWithConcurrencyLimit<T>(
  * @param screenshotBase64 截图的base64（不含前缀）
  * @param iconLibrary icon库数组，每个包含base64
  * @param onLog 日志回调函数
- * @param maxIconsPerCall 每批次最大icon数量，默认12
+ * @param maxIconsPerCall 每批次最大icon数量，默认5
  * @returns 匹配结果
  */
 export async function runDirectVisionMatching(
@@ -242,7 +242,7 @@ export async function runDirectVisionMatching(
   screenshotBase64: string,
   iconLibrary: IconCandidate[],
   onLog: (message: string) => void,
-  maxIconsPerCall: number = 12
+  maxIconsPerCall: number = 5
 ): Promise<VisionMatchResult> {
   if (!config.endpoint || !config.apiKey || !config.model) {
     const error = 'API配置不完整，请检查端点、Key和模型';
