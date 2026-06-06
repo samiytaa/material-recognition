@@ -26,9 +26,76 @@ export function processImageFiles(
 }
 
 /**
- * 读取图片文件为 Base64
+ * 压缩图片
+ * @param file 原始图片文件
+ * @param maxWidth 最大宽度（默认1200px）
+ * @param quality 压缩质量（0-1，默认0.8）
  */
-export function readFileAsDataURL(file: File): Promise<string> {
+export function compressImage(
+  file: File,
+  maxWidth: number = 1200,
+  quality: number = 0.8
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        // 创建 canvas 进行压缩
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('无法创建 canvas context'));
+          return;
+        }
+        
+        // 计算压缩后的尺寸
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // 绘制压缩后的图片
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // 转换为 base64
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      
+      img.onerror = () => {
+        reject(new Error('图片加载失败'));
+      };
+      
+      img.src = e.target?.result as string;
+    };
+    
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * 读取图片文件为 Base64（带自动压缩）
+ * @param file 图片文件
+ * @param compress 是否压缩（默认 true）
+ */
+export function readFileAsDataURL(file: File, compress: boolean = true): Promise<string> {
+  // 如果需要压缩且文件大于 500KB，则进行压缩
+  if (compress && file.size > 500 * 1024) {
+    return compressImage(file);
+  }
+  
+  // 小文件直接读取
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {

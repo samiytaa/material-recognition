@@ -184,6 +184,15 @@ export default function Tab2Record({
       if (sizeInMB > 5) {
         console.warn(`截图数据过大 (${sizeInMB.toFixed(2)}MB)，可能超出localStorage限制`);
         addRecordLog(`⚠ 截图数据过大 (${sizeInMB.toFixed(2)}MB)，保存可能失败`);
+        
+        // 超出限制时，只保留最近的截图
+        if (uploadedScreenshots.length > 10) {
+          const recentScreenshots = uploadedScreenshots.slice(-10);
+          localStorage.setItem('tab2_uploadedScreenshots', JSON.stringify(recentScreenshots));
+          addRecordLog(`⚠ 已自动清理，仅保留最近 10 张截图`);
+          setUploadedScreenshots(recentScreenshots);
+          return;
+        }
       }
       
       localStorage.setItem('tab2_uploadedScreenshots', dataToSave);
@@ -191,8 +200,22 @@ export default function Tab2Record({
     } catch (error) {
       console.error('保存截图列表失败:', error);
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        addRecordLog('❌ 存储空间不足，无法保存截图。请减少截图数量或清理浏览器缓存');
-        alert('存储空间不足！\n截图数据太大，无法保存到本地存储。\n建议：\n1. 减少上传的截图数量\n2. 清理浏览器缓存\n3. 尽快完成识别操作');
+        addRecordLog('❌ 存储空间不足，无法保存截图。已自动清理部分数据');
+        
+        // 存储失败时，只保留最近的 5 张截图
+        const recentScreenshots = uploadedScreenshots.slice(-5);
+        try {
+          localStorage.setItem('tab2_uploadedScreenshots', JSON.stringify(recentScreenshots));
+          addRecordLog(`✓ 已保留最近 5 张截图`);
+          setUploadedScreenshots(recentScreenshots);
+        } catch (retryError) {
+          // 如果还是失败，清空所有截图缓存
+          localStorage.removeItem('tab2_uploadedScreenshots');
+          addRecordLog('❌ 已清空所有截图缓存，请重新上传');
+          setUploadedScreenshots([]);
+        }
+        
+        alert('存储空间不足！\n已自动压缩并清理部分数据。\n建议：\n1. 图片已自动压缩\n2. 分批上传（每次不超过10张）\n3. 及时完成识别操作后清空待处理区');
       } else {
         addRecordLog(`❌ 保存截图失败: ${error}`);
       }
@@ -264,14 +287,46 @@ export default function Tab2Record({
       return;
     }
 
-    addRecordLog(`开始上传 ${filesToUpload.length} 张游戏截图...`);
+    // 检查是否超过推荐数量
+    const totalAfterUpload = uploadedScreenshots.length + filesToUpload.length;
+    if (totalAfterUpload > 20) {
+      const shouldContinue = confirm(
+        `注意：您即将上传 ${filesToUpload.length} 张图片，加上现有的 ${uploadedScreenshots.length} 张，总共 ${totalAfterUpload} 张\n\n` +
+        `为避免内存不足，建议：\n` +
+        `1. 分批上传（每次不超过20张）\n` +
+        `2. 及时完成识别后清空待处理区\n\n` +
+        `图片会自动压缩以节省空间\n\n` +
+        `是否继续上传？`
+      );
+      
+      if (!shouldContinue) {
+        addRecordLog('用户取消上传');
+        return;
+      }
+    }
+
+    addRecordLog(`开始上传 ${filesToUpload.length} 张游戏截图（自动压缩中...）`);
 
     const newScreenshots: Array<{id: number; name: string; dataUrl: string}> = [];
+    let compressedCount = 0;
+    let originalSize = 0;
+    let compressedSize = 0;
     
     for (let i = 0; i < filesToUpload.length; i++) {
       const file = filesToUpload[i];
-      const dataUrl = await readFileAsDataURL(file);
+      originalSize += file.size;
+      
+      // 自动压缩图片（超过500KB会压缩）
+      const dataUrl = await readFileAsDataURL(file, true);
       const nameWithoutExt = getFileNameWithoutExtension(file.name);
+      
+      // 计算压缩后大小
+      const compressedSizeBytes = Math.ceil((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+      compressedSize += compressedSizeBytes;
+      
+      if (file.size > 500 * 1024) {
+        compressedCount++;
+      }
 
       newScreenshots.push({
         id: Date.now() + i,
@@ -279,11 +334,17 @@ export default function Tab2Record({
         dataUrl: dataUrl
       });
 
-      addRecordLog(`[${i + 1}/${filesToUpload.length}] 导入游戏截图: ${file.name}`);
+      addRecordLog(`[${i + 1}/${filesToUpload.length}] 导入游戏截图: ${file.name}${file.size > 500 * 1024 ? ' (已压缩)' : ''}`);
     }
 
     setUploadedScreenshots(prev => [...prev, ...newScreenshots]);
+    
+    const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
     addRecordLog(`✓ 游戏截图批量上传完成，已添加 ${newScreenshots.length} 张截图`);
+    if (compressedCount > 0) {
+      addRecordLog(`  压缩统计: ${compressedCount} 张图片已压缩，节省 ${compressionRatio}% 空间`);
+      addRecordLog(`  原始大小: ${(originalSize / 1024 / 1024).toFixed(2)}MB → 压缩后: ${(compressedSize / 1024 / 1024).toFixed(2)}MB`);
+    }
   };
 
   const handleCellImageUpload = (rowId: number, type: 'original' | 'screenshot') => {
