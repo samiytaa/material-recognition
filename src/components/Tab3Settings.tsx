@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Sparkles } from 'lucide-react';
 
 // 导入底图图片
-import propGold from '/public/basemaps/prop-gold.png';
-import propPurple from '/public/basemaps/prop-purple.png';
-import propBlue from '/public/basemaps/prop-blue.png';
-import propGreen from '/public/basemaps/prop-green.png';
-import propBrown from '/public/basemaps/prop-brown.png';
+import propGold from '/basemaps/prop-gold.png';
+import propPurple from '/basemaps/prop-purple.png';
+import propBlue from '/basemaps/prop-blue.png';
+import propGreen from '/basemaps/prop-green.png';
+import propBrown from '/basemaps/prop-brown.png';
 
 interface BasemapItem {
   id: string;
