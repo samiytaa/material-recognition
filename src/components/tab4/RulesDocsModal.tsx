@@ -118,37 +118,61 @@ export function RulesDocsModal({ open, onClose }: RulesDocsModalProps) {
                 <div className="bg-white border border-[#E9DFD0] p-4 rounded-xl space-y-3 text-xs text-[#5C534C] leading-relaxed">
                   <div>
                     <div className="font-bold text-[#A67020] mb-1.5">✦ 男主映射表</div>
-                    <div className="text-[11px] space-x-2">
-                      <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">lb</code> <span className="text-gray-600">→ 刘辩</span>
-                      <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">fr</code> <span className="text-gray-600">→ 傅融</span>
-                      <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">sc</code> <span className="text-gray-600">→ 孙策</span>
-                      <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">yj</code> <span className="text-gray-600">→ 袁基</span>
-                      <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">zc</code> <span className="text-gray-600">→ 左慈</span>
+                    <div className="text-[11px] flex flex-wrap gap-x-3 gap-y-1.5">
+                      <span className="whitespace-nowrap">
+                        <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">lb</code> <span className="text-gray-600">→ 刘辩</span>
+                      </span>
+                      <span className="whitespace-nowrap">
+                        <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">fr</code> <span className="text-gray-600">→ 傅融</span>
+                      </span>
+                      <span className="whitespace-nowrap">
+                        <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">sc</code> <span className="text-gray-600">→ 孙策</span>
+                      </span>
+                      <span className="whitespace-nowrap">
+                        <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">yj</code> <span className="text-gray-600">→ 袁基</span>
+                      </span>
+                      <span className="whitespace-nowrap">
+                        <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono">zc</code> <span className="text-gray-600">→ 左慈</span>
+                      </span>
                     </div>
                   </div>
                   
                   <div className="border-t border-dashed border-[#DFD2BD]/50 pt-2">
                     <div className="font-bold text-[#A67020] mb-1.5">✦ 分类映射表</div>
-                    <div className="text-[11px] space-y-1">
-                      <div>
-                        <span className="text-gray-700 font-semibold">户外：</span>
-                        <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono ml-1">jianzhu</code> <span className="text-gray-600">→ 建筑</span>
-                        <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono ml-2">jingguan</code> <span className="text-gray-600">→ 景观</span>
+                    <div className="text-[11px] space-y-1.5">
+                      <div className="flex flex-wrap gap-x-2 gap-y-1">
+                        <span className="text-gray-700 font-semibold whitespace-nowrap">户外：</span>
+                        <span className="whitespace-nowrap">
+                          <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono">jianzhu</code> <span className="text-gray-600">→ 建筑</span>
+                        </span>
+                        <span className="whitespace-nowrap">
+                          <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono">jingguan</code> <span className="text-gray-600">→ 景观</span>
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-gray-700 font-semibold">户内：</span>
-                        <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono ml-1">qiju</code> <span className="text-gray-600">→ 起居</span>
-                        <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono ml-2">chufang</code> <span className="text-gray-600">→ 厨房</span>
+                      <div className="flex flex-wrap gap-x-2 gap-y-1">
+                        <span className="text-gray-700 font-semibold whitespace-nowrap">户内：</span>
+                        <span className="whitespace-nowrap">
+                          <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono">qiju</code> <span className="text-gray-600">→ 起居</span>
+                        </span>
+                        <span className="whitespace-nowrap">
+                          <code className="bg-yellow-100 px-1.5 py-0.5 rounded font-mono">chufang</code> <span className="text-gray-600">→ 厨房</span>
+                        </span>
                       </div>
                     </div>
                   </div>
                   
                   <div className="border-t border-dashed border-[#DFD2BD]/50 pt-2">
                     <div className="font-bold text-[#A67020] mb-1.5">✦ 密探映射表</div>
-                    <div className="text-[11px] space-x-2">
-                      <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">sunfu</code> <span className="text-gray-600">→ 孙辅</span>
-                      <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">sunyi</code> <span className="text-gray-600">→ 孙翊</span>
-                      <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">zhanghong</code> <span className="text-gray-600">→ 张纮</span>
+                    <div className="text-[11px] flex flex-wrap gap-x-3 gap-y-1.5">
+                      <span className="whitespace-nowrap">
+                        <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">sunfu</code> <span className="text-gray-600">→ 孙辅</span>
+                      </span>
+                      <span className="whitespace-nowrap">
+                        <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">sunyi</code> <span className="text-gray-600">→ 孙翊</span>
+                      </span>
+                      <span className="whitespace-nowrap">
+                        <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">zhanghong</code> <span className="text-gray-600">→ 张纮</span>
+                      </span>
                     </div>
                   </div>
                   
@@ -238,10 +262,10 @@ function ExampleCard({ title, filename, parts, result }: ExampleCardProps) {
     <div className="bg-[#FAF8F5] rounded-lg border border-[#DFD2BD] p-3">
       <div className="text-xs font-bold text-[#674b2d] mb-2">{title}</div>
       <div className="bg-white rounded p-2 mb-2 border border-[#E9DFD0]">
-        <div className="text-xs text-gray-600 mb-1.5 font-mono">{filename}</div>
-        <div className="flex flex-wrap gap-1.5 text-xs">
+        <div className="text-xs text-gray-600 mb-1.5 font-mono break-all">{filename}</div>
+        <div className="flex flex-wrap gap-x-2 gap-y-1.5 text-xs">
           {parts.map(([code, label, colorClass]) => (
-            <div key={code} className="flex items-center gap-1">
+            <div key={code} className="flex items-center gap-1 whitespace-nowrap">
               <span className={`${colorClass} px-1.5 py-0.5 rounded font-mono text-[10px]`}>{code}</span>
               <span className="text-gray-500 text-[10px]">{label}</span>
             </div>
