@@ -3,20 +3,9 @@ import { Sparkles, Download } from 'lucide-react';
 import { RecordRow } from '../types';
 import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
-import { UploadZone, Button, Card, RecognitionProgressModal } from './common';
+import { UploadZone, Button, Card, RecognitionProgressModal, BasemapGroupSelector } from './common';
 import { readFileAsDataURL, getFileNameWithoutExtension } from '../utils/fileHelper';
-
-interface BasemapItem {
-  id: string;
-  image: string;
-  color: string;
-}
-
-interface MapGroup {
-  id: string;
-  name: string;
-  thumbnails: BasemapItem[];
-}
+import { useBasemapGroups, type MapGroup } from '../hooks';
 
 interface Tab2RecordProps {
   recordList: RecordRow[];
@@ -183,9 +172,11 @@ export default function Tab2Record({
     addRecordLog(`已批量删除 ${rowsWithScreenshots.length} 张游戏截图`);
   };
   
-  // 底图组相关状态
-  const [basemapGroups, setBasemapGroups] = useState<MapGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  // 使用统一的底图组管理 Hook
+  const { groups: basemapGroups } = useBasemapGroups(addRecordLog);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(() => {
+    return basemapGroups.length > 0 ? basemapGroups[0].id : '';
+  });
   const [availableColors, setAvailableColors] = useState<string[]>(['金', '紫', '蓝', '绿', '咖']);
   
   // 加底逻辑：Contain 等比缩放模式（与Tab5一致）
@@ -194,58 +185,11 @@ export default function Tab2Record({
     return saved !== null ? saved === 'true' : true; // 默认启用
   });
   
-  // 从localStorage加载底图组配置
+  // 初始化选中的底图组
   useEffect(() => {
-    const loadBasemapGroups = () => {
-      const saved = localStorage.getItem('tab3_groups');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setBasemapGroups(parsed);
-          if (parsed.length > 0 && !selectedGroupId) {
-            setSelectedGroupId(parsed[0].id);
-          }
-        } catch (e) {
-          console.error('加载底图组配置失败:', e);
-        }
-      }
-    };
-    
-    // 初始加载
-    loadBasemapGroups();
-    
-    // 监听 storage 事件（跨标签页同步）
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'tab3_groups') {
-        loadBasemapGroups();
-        addRecordLog('✓ 检测到底图配置更新，已重新加载');
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // 定期检查配置变化（用于同一标签页内的更新）
-    const intervalId = setInterval(() => {
-      const saved = localStorage.getItem('tab3_groups');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          const currentStr = JSON.stringify(basemapGroups);
-          const newStr = JSON.stringify(parsed);
-          if (currentStr !== newStr) {
-            setBasemapGroups(parsed);
-            addRecordLog('✓ 检测到底图配置更新，已重新加载');
-          }
-        } catch (e) {
-          // 忽略解析错误
-        }
-      }
-    }, 2000); // 每2秒检查一次
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(intervalId);
-    };
+    if (basemapGroups.length > 0 && !selectedGroupId) {
+      setSelectedGroupId(basemapGroups[0].id);
+    }
   }, [basemapGroups, selectedGroupId]);
   
   // 当选择的底图组变化时，更新可用底色列表
@@ -1193,17 +1137,12 @@ export default function Tab2Record({
                 <label className="text-xs font-semibold text-[#674b2d] whitespace-nowrap">
                   底图组
                 </label>
-                <select
-                  value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="flex-1 text-xs px-2 py-1.5 bg-white border border-[#DFD2BD] rounded-md outline-none font-medium text-[#674b2d] hover:border-[#8B6F47] focus:border-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] transition-colors"
-                >
-                  {basemapGroups.map(group => (
-                    <option key={group.id} value={group.id}>
-                      {group.name} ({group.thumbnails.length}个底色)
-                    </option>
-                  ))}
-                </select>
+                <BasemapGroupSelector
+                  groups={basemapGroups}
+                  selectedGroupId={selectedGroupId}
+                  onGroupChange={setSelectedGroupId}
+                  className="flex-1"
+                />
               </div>
               
               {/* 加底等比缩放开关 - 带独特样式 */}

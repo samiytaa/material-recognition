@@ -50,15 +50,34 @@ export async function exportImagesToZip(
   const zip = new JSZip();
   const folder = zip.folder('道具图片');
 
+  // 用于跟踪已使用的文件名，避免重名
+  const usedFileNames = new Set<string>();
+  
+  /**
+   * 生成唯一的文件名，如果重名则添加数字后缀
+   */
+  const getUniqueFileName = (baseName: string): string => {
+    let fileName = `${baseName}.png`;
+    let counter = 1;
+    
+    while (usedFileNames.has(fileName)) {
+      fileName = `${baseName}_${counter}.png`;
+      counter++;
+    }
+    
+    usedFileNames.add(fileName);
+    return fileName;
+  };
+
   // 将每个图片添加到 zip
   for (let i = 0; i < validProps.length; i++) {
     const prop = validProps[i];
     if (prop.image) {
       // 从 base64 数据中提取实际的图片数据
       const base64Data = prop.image.split(',')[1];
-      const fileName = `${prop.displayName}.png`;
+      const uniqueFileName = getUniqueFileName(prop.displayName);
       
-      folder?.file(fileName, base64Data, { base64: true });
+      folder?.file(uniqueFileName, base64Data, { base64: true });
       onProgress?.(i + 1, validProps.length);
     }
   }
@@ -88,12 +107,32 @@ export async function exportRecordsToZip(
   const zip = new JSZip();
   const folder = zip.folder('加底图片');
 
+  // 用于跟踪已使用的文件名，避免重名
+  const usedFileNames = new Set<string>();
+  
+  /**
+   * 生成唯一的文件名，如果重名则添加数字后缀
+   * 例如：icon.png → icon_1.png → icon_2.png
+   */
+  const getUniqueFileName = (baseName: string): string => {
+    let fileName = `${baseName}.png`;
+    let counter = 1;
+    
+    while (usedFileNames.has(fileName)) {
+      fileName = `${baseName}_${counter}.png`;
+      counter++;
+    }
+    
+    usedFileNames.add(fileName);
+    return fileName;
+  };
+
   for (let i = 0; i < exportRows.length; i++) {
     const row = exportRows[i];
     if (row.previewWithBase) {
       const base64Data = row.previewWithBase.split(',')[1];
-      const fileName = `${row.outputName}.png`;
-      folder?.file(fileName, base64Data, { base64: true });
+      const uniqueFileName = getUniqueFileName(row.outputName);
+      folder?.file(uniqueFileName, base64Data, { base64: true });
       onProgress?.(i + 1, exportRows.length);
     }
   }
