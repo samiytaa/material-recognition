@@ -1,5 +1,6 @@
 import parseConfig from './parseConfig.json';
 import categoryConfig from './categoryConfig.json';
+import ownershipRulesConfig from './categoryOwnershipRules.json';
 
 // ─── 动态规则加载 ────────────────────────────────────────────
 
@@ -53,18 +54,47 @@ export const CATEGORIES: Record<string, string> = {
   ...FLOOR_CATEGORIES,
 };
 
+// 归属规则配置
+const OWNERSHIP_RULES = ownershipRulesConfig.categoryOwnershipRules as Record<string, any>;
+
 // ─── 类型定义 ────────────────────────────────────────────────
+
+export type OwnershipType = 'male_lead' | 'spy' | 'none';
+
+export interface OwnershipInfo {
+  type: OwnershipType;
+  name: string | null;
+  code: string | null;
+}
+
+export interface FurnitureDetails {
+  scene: 'indoor' | 'outdoor' | 'background';
+  isFloor: boolean;
+  isGrowthProp: boolean;
+  isSuit: boolean;
+}
+
+export interface Classification {
+  type: 'furniture' | 'other';
+  category: string;
+  categoryPath: string[];
+  furnitureDetails?: FurnitureDetails;
+}
 
 export interface PropItem {
   name: string;
   displayName: string;
+  image: string | null;
+  classification: Classification;
+  ownership: OwnershipInfo;
+  
+  // 为了兼容旧代码，保留这些字段
   type: 'furniture' | 'other';
   category: string;
+  categoryPath: string[];
   maleLead: string | null;
   isGrowthProp: boolean;
   isFloor: boolean;
-  image: string | null;
-  categoryPath?: string[];
 }
 
 export interface RecordRow {
@@ -121,11 +151,11 @@ export function getCategoryPath(categoryName: string): string[] {
 
 /**
  * 按 `_` 切段精确查男主映射，避免子串误匹配。
- * 例：icon_sc_hy_5033 → 孙策；icon_hy_3037 → null
+ * 例：icon_sc_hy_5033 → { name: '孙策', code: 'sc' }
  */
-function detectMaleLead(segments: string[]): string | null {
+function detectMaleLead(segments: string[]): { name: string; code: string } | null {
   for (const seg of segments) {
-    if (MALE_LEADS[seg]) return MALE_LEADS[seg];
+    if (MALE_LEADS[seg]) return { name: MALE_LEADS[seg], code: seg };
   }
   return null;
 }
@@ -136,19 +166,128 @@ function detectMaleLead(segments: string[]): string | null {
  *  - 双段拼合：achan + huanfu-1 → achan_huanfu-1 → 阿蝉·雾绡
  *  - MV_ 前缀：MV_chendeng → 陈登·黍王
  */
-function detectSpyName(segments: string[]): string | null {
+function detectSpyName(segments: string[]): { name: string; code: string } | null {
   // 双段拼合（含连字符后缀，如 huanfu-1）
   for (let i = 0; i < segments.length - 1; i++) {
     const key = `${segments[i]}_${segments[i + 1]}`;
-    if (SPY_NAMES[key]) return SPY_NAMES[key];
+    if (SPY_NAMES[key]) return { name: SPY_NAMES[key], code: key };
   }
   // 单段
   for (const seg of segments) {
-    if (SPY_NAMES[seg]) return SPY_NAMES[seg];
+    if (SPY_NAMES[seg]) return { name: SPY_NAMES[seg], code: seg };
     // MV_ 前缀变体（文件名中 MV 段独立出现）
-    if (SPY_NAMES[`MV_${seg}`]) return SPY_NAMES[`MV_${seg}`];
+    if (SPY_NAMES[`MV_${seg}`]) return { name: SPY_NAMES[`MV_${seg}`], code: `MV_${seg}` };
   }
   return null;
+}
+
+/**
+ * 根据分类和上下文识别归属信息
+ */
+function identifyOwnership(
+  cleanName: string,
+  segments: string[],
+  category: string,
+  extractContext?: any
+): OwnershipInfo {
+  const rule = OWNERSHIP_RULES[category];
+  
+  if (!rule) {
+    // 无规则，尝试通用检测
+    const maleLead = detectMaleLead(segments);
+    const spy = detectSpyName(segments);
+    if (maleLead) return { type: 'male_lead', name: maleLead.name, code: maleLead.code };
+    if (spy) return { type: 'spy', name: spy.name, code: spy.code };
+    return { type: 'none', name: null, code: null };
+  }
+  
+  const { defaultOwnership, extractFrom, allowNone } = rule;
+  
+  // none 类型直接返回
+  if (defaultOwnership === 'none') {
+    return { type: 'none', name: null, code: null };
+  }
+  
+  // 根据提取方式识别
+  switch (extractFrom) {
+    case 'segments': {
+      // 从文件名段中提取
+      if (defaultOwnership === 'male_lead') {
+        const maleLead = detectMaleLead(segments);
+        if (maleLead) return { type: 'male_lead', name: maleLead.name, code: maleLead.code };
+        return allowNone ? { type: 'none', name: null, code: null } : { type: 'male_lead', name: null, code: null };
+      } else if (defaultOwnership === 'spy') {
+        const spy = detectSpyName(segments);
+        if (spy) return { type: 'spy', name: spy.name, code: spy.code };
+        return allowNone ? { type: 'none', name: null, code: null } : { type: 'spy', name: null, code: null };
+      } else if (defaultOwnership === 'mixed') {
+        // 混合类型，优先男主，次之密探
+        const maleLead = detectMaleLead(segments);
+        if (maleLead) return { type: 'male_lead', name: maleLead.name, code: maleLead.code };
+        const spy = detectSpyName(segments);
+        if (spy) return { type: 'spy', name: spy.name, code: spy.code };
+        return { type: 'none', name: null, code: null };
+      }
+      break;
+    }
+    
+    case 'ccl_code': {
+      // 从 ccl 编码提取男主
+      if (extractContext?.cclCode) {
+        const leadNum = extractContext.cclCode[0];
+        const LEAD_NUM: Record<string, { name: string; code: string }> = {
+          '1': { name: '刘辩', code: 'lb' },
+          '2': { name: '傅融', code: 'fr' },
+          '3': { name: '袁基', code: 'yj' },
+          '4': { name: '左慈', code: 'zc' },
+          '5': { name: '孙策', code: 'sc' }
+        };
+        const lead = LEAD_NUM[leadNum];
+        if (lead) return { type: 'male_lead', name: lead.name, code: lead.code };
+      }
+      break;
+    }
+    
+    case 'component_code': {
+      // 从 component 编码提取男主
+      if (extractContext?.componentCode) {
+        const leadNum = extractContext.componentCode[0];
+        const LEAD_NUM: Record<string, { name: string; code: string }> = {
+          '1': { name: '刘辩', code: 'lb' },
+          '2': { name: '傅融', code: 'fr' },
+          '3': { name: '袁基', code: 'yj' },
+          '4': { name: '左慈', code: 'zc' },
+          '5': { name: '孙策', code: 'sc' }
+        };
+        const lead = LEAD_NUM[leadNum];
+        if (lead) return { type: 'male_lead', name: lead.name, code: lead.code };
+      }
+      break;
+    }
+    
+    case 'furniture_segment': {
+      // 从家具格式中提取男主（icon_s数字_[fd_]<男主/all>_<分类码>_<编号>）
+      if (extractContext?.leadOrAll && extractContext.leadOrAll !== 'all') {
+        const code = extractContext.leadOrAll;
+        const name = MALE_LEADS[code];
+        if (name) return { type: 'male_lead', name, code };
+      }
+      return { type: 'none', name: null, code: null };
+    }
+    
+    case 'avatar_pinyin': {
+      // 从头像拼音提取密探名
+      if (extractContext?.pinyin) {
+        const spy = SPY_NAMES[extractContext.pinyin];
+        if (spy) return { type: 'spy', name: spy, code: extractContext.pinyin };
+        return { type: 'spy', name: extractContext.pinyin, code: extractContext.pinyin };
+      }
+      break;
+    }
+  }
+  
+  // 兜底
+  return { type: 'none', name: null, code: null };
 }
 
 // ─── 统一返回结构 ────────────────────────────────────────────
@@ -157,25 +296,36 @@ function makeResult(
   displayName: string,
   category: string,
   type: 'furniture' | 'other' = 'other',
-  maleLead: string | null = null,
-  isGrowthProp = false,
-  isFloor = false,
-  categoryPath?: string[]
-) {
-  return {
-    originalName: fileName,
-    displayName,
+  ownership: OwnershipInfo = { type: 'none', name: null, code: null },
+  furnitureDetails?: FurnitureDetails
+): PropItem {
+  const categoryPath = getCategoryPath(category);
+  
+  const classification: Classification = {
     type,
     category,
-    maleLead,
-    isGrowthProp,
-    isFloor,
-    categoryPath: categoryPath ?? getCategoryPath(category),
+    categoryPath,
+    furnitureDetails
+  };
+  
+  return {
+    name: fileName,
+    displayName,
+    image: null,
+    classification,
+    ownership,
+    // 兼容字段
+    type,
+    category,
+    categoryPath,
+    maleLead: ownership.type === 'male_lead' ? ownership.name : null,
+    isGrowthProp: furnitureDetails?.isGrowthProp ?? false,
+    isFloor: furnitureDetails?.isFloor ?? false
   };
 }
 
 // ─── 主解析函数 ──────────────────────────────────────────────
-export function parseFileName(fileName: string) {
+export function parseFileName(fileName: string): PropItem {
   // 去掉 .png 后缀和尾部 #数字 标签
   const cleanName = fileName
     .replace(/\.png$/i, '')
@@ -185,32 +335,18 @@ export function parseFileName(fileName: string) {
   // 预切段，供所有分支共用（性能 + 统一性）
   const segments = cleanName.split('_');
 
-  // 全局预检：优先提取男主 / 密探名
-  const globalMaleLead = detectMaleLead(segments);
-  const globalSpyName  = detectSpyName(segments);
-
   // ── 1. 非 icon 开头（含纯中文名等） ────────────────────────
   if (!cleanName.startsWith('icon') && !cleanName.startsWith('cjr_')) {
-    const person = globalMaleLead || globalSpyName;
-    return makeResult(
-      fileName,
-      person ? `${person}-${cleanName}` : cleanName,
-      '其他',
-      'other',
-      globalMaleLead,
-    );
+    const ownership = identifyOwnership(cleanName, segments, '其他');
+    const displayName = ownership.name ? `${ownership.name}-${cleanName}` : cleanName;
+    return makeResult(fileName, displayName, '其他', 'other', ownership);
   }
 
   // ── 2. cjr_ 开头的初见日道具（无 icon 前缀） ───────────────
   if (cleanName.startsWith('cjr_')) {
-    const lead = globalMaleLead;
-    return makeResult(
-      fileName,
-      lead ? `${lead}-初见日道具` : '初见日道具',
-      '初见日道具',
-      'other',
-      lead,
-    );
+    const ownership = identifyOwnership(cleanName, segments, '初见日道具');
+    const displayName = ownership.name ? `${ownership.name}-初见日道具` : '初见日道具';
+    return makeResult(fileName, displayName, '初见日道具', 'other', ownership);
   }
 
   // ── 3. 密探/绒绒头像：icon2_ / icon3_ / icon_cat_ / icon_dog_ / icon_animal_ ─
@@ -233,33 +369,43 @@ export function parseFileName(fileName: string) {
       'icon_animal': '特殊绒绒',
     };
     const avatarType = avatarTypeMap[prefix] ?? '密探头像';
-    const spyName    = SPY_NAMES[pinyin] ?? pinyin;
+    const ownership = identifyOwnership(cleanName, segments, avatarType, { pinyin });
+    const spyName = ownership.name ?? pinyin;
 
     let displayName = `${avatarType}-${spyName}`;
     if (isRed)           displayName += '-红';
     if (levelMap[level]) displayName += `(${levelMap[level]})`;
 
-    return makeResult(fileName, displayName, avatarType);
+    return makeResult(fileName, displayName, avatarType, 'other', ownership);
   }
 
   // ── 4. 普通密探头像：icon_<拼音>_s ─────────────────────────
-  //    注意：必须在上面的 spyAvatarMatch 之后，避免被 icon_cat/dog 等误入
   if (cleanName.match(/_s$/)) {
-    // 从倒数第二段往前逐步拼合，找到最长匹配的密探拼音
-    // segments 末尾是 's'，倒数第二段开始向前查
     let spyName: string | null = null;
+    let spyCode: string | null = null;
+    
     for (let len = segments.length - 2; len >= 1; len--) {
-      // 从 index 1（跳过 'icon' 段）开始，尝试长度为 len 的窗口
       for (let start = 1; start + len <= segments.length - 1; start++) {
         const key = segments.slice(start, start + len).join('_');
-        if (SPY_NAMES[key]) { spyName = SPY_NAMES[key]; break; }
+        if (SPY_NAMES[key]) { 
+          spyName = SPY_NAMES[key];
+          spyCode = key;
+          break; 
+        }
       }
       if (spyName) break;
     }
+    
+    const ownership: OwnershipInfo = spyName 
+      ? { type: 'spy', name: spyName, code: spyCode }
+      : { type: 'spy', name: null, code: null };
+    
     return makeResult(
       fileName,
       spyName ? `密探头像-${spyName}` : '密探头像',
       '密探头像',
+      'other',
+      ownership
     );
   }
 

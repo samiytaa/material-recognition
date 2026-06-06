@@ -1,0 +1,232 @@
+{
+  "categoryOwnershipRules": {
+    "男主元素": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主言事章": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主言事章影子": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主皮肤": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主心纸君动作": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主心纸君皮肤": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主背景": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "男主互动道具": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "ccl_code"
+    },
+    "男主装饰": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "component_code"
+    },
+    "男主回忆": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "吉光片羽": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "初见日道具": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "segments"
+    },
+    "密探礼物": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "心纸": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "自选密探": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "言事章": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "言事章影子": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "密探皮肤": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "密探温泉": {
+      "defaultOwnership": "spy",
+      "extractFrom": "segments"
+    },
+    "密探头像": {
+      "defaultOwnership": "spy",
+      "extractFrom": "avatar_pinyin"
+    },
+    "魂魂头像": {
+      "defaultOwnership": "spy",
+      "extractFrom": "avatar_pinyin"
+    },
+    "QQ人头像": {
+      "defaultOwnership": "spy",
+      "extractFrom": "avatar_pinyin"
+    },
+    "猫绒绒": {
+      "defaultOwnership": "spy",
+      "extractFrom": "avatar_pinyin"
+    },
+    "狗绒绒": {
+      "defaultOwnership": "spy",
+      "extractFrom": "avatar_pinyin"
+    },
+    "特殊绒绒": {
+      "defaultOwnership": "spy",
+      "extractFrom": "avatar_pinyin"
+    },
+    "起居": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "置物": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "装饰": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "挂件": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "墙纸": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "地板": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "地面": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "建筑": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "景观": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "陈设": {
+      "defaultOwnership": "male_lead",
+      "extractFrom": "furniture_segment",
+      "allowNone": true
+    },
+    "户内": {
+      "defaultOwnership": "none"
+    },
+    "户外": {
+      "defaultOwnership": "none"
+    },
+    "衬景": {
+      "defaultOwnership": "none"
+    },
+    "主界面背景": {
+      "defaultOwnership": "none"
+    },
+    "主界面音乐": {
+      "defaultOwnership": "none"
+    },
+    "符牒": {
+      "defaultOwnership": "none"
+    },
+    "活动": {
+      "defaultOwnership": "none"
+    },
+    "礼包": {
+      "defaultOwnership": "none"
+    },
+    "留音匣": {
+      "defaultOwnership": "none"
+    },
+    "日志": {
+      "defaultOwnership": "none"
+    },
+    "头像框": {
+      "defaultOwnership": "none"
+    },
+    "自定义头像框": {
+      "defaultOwnership": "none"
+    },
+    "家具道具": {
+      "defaultOwnership": "none"
+    },
+    "笺匣": {
+      "defaultOwnership": "none"
+    },
+    "魂生一串系列": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "魂生一串系列2": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "七夕活动": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "肉鸽": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "躬耕南阳": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "海岛漂流": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "一周年": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "半周年": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    },
+    "其他": {
+      "defaultOwnership": "mixed",
+      "extractFrom": "segments"
+    }
+  }
+}

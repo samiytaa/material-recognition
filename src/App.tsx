@@ -10,7 +10,11 @@ import Tab5Compose from './components/Tab5Compose';
 import { ProgressBar } from './components/common';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5'>('tab5');
+  // 从localStorage读取上次打开的tab，如果没有则默认为tab5
+  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5'>(() => {
+    const savedTab = localStorage.getItem('lastActiveTab');
+    return (savedTab as 'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5') || 'tab5';
+  });
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [isApiConfigOpen, setIsApiConfigOpen] = useState<boolean>(false);
   const [apiEndpoint, setApiEndpoint] = useState<string>('');
@@ -84,6 +88,11 @@ export default function App() {
       addLog('已清空所有道具（包括本地存储）');
     }
   };
+
+  // 监听activeTab变化，保存到localStorage
+  useEffect(() => {
+    localStorage.setItem('lastActiveTab', activeTab);
+  }, [activeTab]);
 
   // Load from local storage initially
   useEffect(() => {

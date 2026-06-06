@@ -74,11 +74,8 @@ echo.
 echo ========================================
 echo.
 
-:: 后台启动浏览器（延迟8秒等待服务器启动）
-start /b cmd /c "timeout /t 8 /nobreak >nul && start http://localhost:3000"
-
 :: 启动 Vite 开发服务器（确保绑定到 0.0.0.0:3000）
-call npm run dev -- --open=false
+call npm run dev
 
 :: 如果服务器异常退出
 if errorlevel 1 (
