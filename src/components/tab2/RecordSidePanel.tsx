@@ -9,9 +9,11 @@ interface RecordSidePanelProps {
   selectedScreenshotCategory: ScreenshotPrimaryCategory;
   pendingRecognitionCount: number;
   exportReadyCount: number;
+  canReview: boolean;
   onScreenshotCategoryChange: (category: ScreenshotPrimaryCategory) => void;
   onBatchScreenshotUpload: (files: FileList) => void;
   onRunAiMatch: () => void;
+  onOpenReview: () => void;
   onExport: () => void;
 }
 
@@ -20,9 +22,11 @@ export default function RecordSidePanel({
   selectedScreenshotCategory,
   pendingRecognitionCount,
   exportReadyCount,
+  canReview,
   onScreenshotCategoryChange,
   onBatchScreenshotUpload,
   onRunAiMatch,
+  onOpenReview,
   onExport
 }: RecordSidePanelProps) {
   const handleFiles = (files: FileList | null) => {
@@ -97,7 +101,9 @@ export default function RecordSidePanel({
         uploadedScreenshotsCount={pendingRecognitionCount}
         exportReadyCount={exportReadyCount}
         iconLibraryCount={iconLibraryCount}
+        canReview={canReview}
         onRunAiMatch={onRunAiMatch}
+        onOpenReview={onOpenReview}
         onExport={onExport}
       />
     </div>

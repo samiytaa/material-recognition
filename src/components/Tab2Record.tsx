@@ -5,7 +5,8 @@ import {
   BatchOperationsBar,
   BasemapSettings,
   ExportModeModal,
-  RecordSidePanel
+  RecordSidePanel,
+  CalibrationReviewModal
 } from './tab2';
 import { Card, RecognitionProgressModal } from './common';
 import {
@@ -14,6 +15,9 @@ import {
 } from '../hooks/useTab2RecordController';
 
 export default function Tab2Record(props: Tab2RecordProps) {
+  const [reviewModalOpen, setReviewModalOpen] = React.useState(false);
+  const [reviewRowId, setReviewRowId] = React.useState<number | null>(null);
+
   const {
     fileInputRef1,
     fileInputRef2,
@@ -58,6 +62,57 @@ export default function Tab2Record(props: Tab2RecordProps) {
   } = useTab2RecordController(props);
 
   const { recordList, setRecordList, recordLogs, addRecordLog, clearRecordLogs } = props;
+  const reviewRows = filteredRecordList;
+  const reviewCurrentIndex = reviewRowId === null
+    ? -1
+    : reviewRows.findIndex(row => row.id === reviewRowId);
+  const reviewCurrentRow = reviewCurrentIndex >= 0 ? reviewRows[reviewCurrentIndex] : null;
+  const reviewOriginalIndex = reviewCurrentRow
+    ? recordList.findIndex(row => row.id === reviewCurrentRow.id)
+    : -1;
+
+  React.useEffect(() => {
+    if (!reviewModalOpen) return;
+    if (reviewRows.length === 0) {
+      setReviewModalOpen(false);
+      setReviewRowId(null);
+      return;
+    }
+    if (reviewCurrentIndex === -1) {
+      setReviewRowId(reviewRows[0].id);
+    }
+  }, [reviewCurrentIndex, reviewModalOpen, reviewRows]);
+
+  const openReviewModal = () => {
+    const firstSelectedRow = reviewRows.find(row => selectedRowIds.includes(row.id));
+    if (!firstSelectedRow) {
+      alert('请先在当前表格中选择一行再进入校对模式。');
+      return;
+    }
+
+    setReviewRowId(firstSelectedRow.id);
+    setReviewModalOpen(true);
+    const originalIndex = recordList.findIndex(row => row.id === firstSelectedRow.id);
+    addRecordLog(`进入校对模式：第 ${originalIndex + 1} 行`);
+  };
+
+  const navigateReviewRow = (nextIndex: number) => {
+    const nextRow = reviewRows[nextIndex];
+    if (!nextRow) return;
+    setReviewRowId(nextRow.id);
+    const originalIndex = recordList.findIndex(row => row.id === nextRow.id);
+    addRecordLog(`校对切换到第 ${originalIndex + 1} 行`);
+  };
+
+  const handleReviewConfirm = () => {
+    if (reviewOriginalIndex === -1) return;
+    confirmRowIcon(reviewOriginalIndex);
+  };
+
+  const handleReviewReturn = () => {
+    if (reviewOriginalIndex === -1) return;
+    returnRowIcon(reviewOriginalIndex);
+  };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 min-h-0 flex-1 overflow-hidden relative">
@@ -103,6 +158,17 @@ export default function Tab2Record(props: Tab2RecordProps) {
         isOpen={exportModeModalOpen}
         onClose={() => setExportModeModalOpen(false)}
         onExport={exportBatchFiles}
+      />
+
+      <CalibrationReviewModal
+        isOpen={reviewModalOpen && reviewCurrentIndex >= 0}
+        rows={reviewRows}
+        currentIndex={Math.max(reviewCurrentIndex, 0)}
+        iconStatus={reviewCurrentRow ? getIconStatus(reviewCurrentRow) : 'none'}
+        onClose={() => setReviewModalOpen(false)}
+        onNavigate={navigateReviewRow}
+        onConfirm={handleReviewConfirm}
+        onReturn={handleReviewReturn}
       />
 
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">
@@ -190,9 +256,11 @@ export default function Tab2Record(props: Tab2RecordProps) {
         selectedScreenshotCategory={selectedScreenshotCategory}
         pendingRecognitionCount={pendingRecognitionCount}
         exportReadyCount={exportReadyCount}
+        canReview={selectedRowIds.length > 0}
         onScreenshotCategoryChange={setSelectedScreenshotCategory}
         onBatchScreenshotUpload={handleBatchScreenshotUpload}
         onRunAiMatch={runAiMatch}
+        onOpenReview={openReviewModal}
         onExport={() => setExportModeModalOpen(true)}
       />
 
