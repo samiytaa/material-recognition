@@ -196,23 +196,6 @@ export function RulesDocsModal({ open, onClose }: RulesDocsModalProps) {
                 </div>
               </div>
 
-              {/* Section 5: 快捷操作 */}
-              <div className="space-y-3">
-                <h3 className="text-xs sm:text-sm font-serif font-bold text-[#9E4A4A] border-b border-[#DFD2BD] pb-1.5 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#9E4A4A]" />
-                  <Zap size={14} className="text-[#9E4A4A]" />
-                  快捷操作
-                </h3>
-                <div className="bg-white border border-[#E9DFD0] p-4 rounded-xl text-xs text-[#5C534C] leading-relaxed">
-                  <div className="grid grid-cols-2 gap-3">
-                    <ActionCard title="测试解析" desc="输入文件名查看解析结果" />
-                    <ActionCard title="导出规则" desc="备份当前所有自定义规则" />
-                    <ActionCard title="导入规则" desc="加载之前导出的规则文件" />
-                    <ActionCard title="重置规则" desc="恢复到系统默认规则" />
-                  </div>
-                </div>
-              </div>
-
             </div>
 
             {/* Backing footer */}
@@ -278,22 +261,5 @@ function FaqItem({ question, answer }: FaqItemProps) {
       </summary>
       <div className="mt-2 text-xs text-gray-600 pl-4 border-l-2 border-[#C59F4A]">{answer}</div>
     </details>
-  );
-}
-
-interface ActionCardProps {
-  title: string;
-  desc: string;
-}
-
-function ActionCard({ title, desc }: ActionCardProps) {
-  return (
-    <div className="bg-[#FAF8F5] rounded-lg border border-[#DFD2BD] p-2.5">
-      <div className="text-xs font-bold text-[#674b2d] flex items-center gap-1.5 mb-1">
-        <span className="h-1 w-1 rounded-full bg-[#A67020]" />
-        {title}
-      </div>
-      <div className="text-[10px] text-gray-600 pl-3">{desc}</div>
-    </div>
   );
 }
