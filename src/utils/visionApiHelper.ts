@@ -517,3 +517,288 @@ ${JSON.stringify(recognitionData, null, 2)}
     return { success: false, error: errorMsg };
   }
 }
+
+/**
+ * 新的识别方式：直接将截图和icon图片一起传给AI进行视觉比较
+ * @param config API配置
+ * @param screenshotBase64 截图的base64（不含前缀）
+ * @param iconLibrary icon库数组，每个包含base64
+ * @param onLog 日志回调函数
+ * @param maxIconsPerCall 每批次最大icon数量，默认12
+ * @returns 匹配结果
+ */
+export async function runDirectVisionMatching(
+  config: VisionApiConfig,
+  screenshotBase64: string,
+  iconLibrary: IconCandidate[],
+  onLog: (message: string) => void,
+  maxIconsPerCall: number = 12
+): Promise<VisionMatchResult> {
+  if (!config.endpoint || !config.apiKey || !config.model) {
+    const error = 'API配置不完整，请检查端点、Key和模型';
+    onLog(`[错误] ${error}`);
+    return { success: false, error };
+  }
+
+  if (!screenshotBase64) {
+    const error = '请先上传游戏截图';
+    onLog(`[错误] ${error}`);
+    return { success: false, error };
+  }
+
+  if (iconLibrary.length === 0) {
+    const error = '请先添加透明icon到库中';
+    onLog(`[错误] ${error}`);
+    return { success: false, error };
+  }
+
+  // 验证并限制批次大小
+  if (maxIconsPerCall < 1) maxIconsPerCall = 1;
+  if (maxIconsPerCall > 20) maxIconsPerCall = 20;
+
+  const totalBatches = Math.ceil(iconLibrary.length / maxIconsPerCall);
+
+  onLog('[开始] 直接视觉识别：AI将直接看到参考图和候选icon图片');
+  if (iconLibrary.length > maxIconsPerCall) {
+    onLog(`[信息] icon库共 ${iconLibrary.length} 个，将分 ${totalBatches} 批次进行识别`);
+  }
+
+  try {
+    // 第一步：识别截图中的底色和物品名称
+    const recognitionPrompt = `你是一个游戏素材分析专家。请仔细观察这张游戏UI截图，识别其中的目标icon。
+
+请严格按以下JSON格式输出（不要输出多余解释）：
+{
+  "icon_circle_background_color": "目标icon圆形底色，描述颜色（金/紫/蓝/绿/咖之一）",
+  "item_name": "物品/角色的核心名称，例如'心纸【孙辅】'、'头像框【菌子不器】'等",
+  "icon_description": "描述icon的视觉特征：形状、颜色、图案、是否为武器/道具/角色等"
+}
+
+注意：
+1. icon_circle_background_color 必须是以下之一：金、紫、蓝、绿、咖
+2. 只识别目标icon的圆形底色，不要与页面背景混淆
+3. item_name 只包含物品名称本身，不包含描述文字
+只输出JSON。`;
+
+    const recognitionReply = await callVisionApi(
+      config,
+      recognitionPrompt,
+      [{ mimeType: 'image/png', base64: screenshotBase64 }],
+      500
+    );
+
+    onLog(`[步骤1] AI识别截图: ${recognitionReply}`);
+
+    let recognitionData: any;
+    try {
+      recognitionData = extractJsonObject(recognitionReply);
+    } catch {
+      recognitionData = { raw: recognitionReply };
+    }
+
+    const colorSource = recognitionData.icon_circle_background_color || '';
+    const color = detectBaseMapColor(colorSource);
+
+    if (!color) {
+      const error = `未能识别底色: ${colorSource || '空'}`;
+      onLog(`[错误] ${error}`);
+      return { success: false, error, rawResponse: recognitionReply };
+    }
+
+    onLog(`[步骤1] 识别结果 - 底色: ${color}, 名称: ${recognitionData.item_name || '未识别'}`);
+
+    // 第二步：分批进行直接视觉比较
+    const allBatchCandidates: Array<{ 
+      batchIndex: number; 
+      confidence: number; 
+      iconIndex: number; 
+      iconName: string;
+      reason: string;
+    }> = [];
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIdx = batchIndex * maxIconsPerCall;
+      const endIdx = Math.min(startIdx + maxIconsPerCall, iconLibrary.length);
+      const iconsToCompare = iconLibrary.slice(startIdx, endIdx);
+
+      onLog(`[批次 ${batchIndex + 1}/${totalBatches}] 比较 icon ${startIdx} 到 ${endIdx - 1}，共 ${iconsToCompare.length} 个`);
+
+      const directMatchingPrompt = `你是一个视觉比较专家。现在你会看到多张图片：
+
+第1张图片：游戏截图，包含一个带彩色圆形底色的icon
+第2张图片及之后：透明背景的候选icon，编号从 icon_0 到 icon_${iconsToCompare.length - 1}
+
+候选icon清单：
+${JSON.stringify(iconsToCompare.map((icon, idx) => ({
+  id: `icon_${idx}`,
+  filename: icon.name,
+  index: idx
+})), null, 2)}
+
+你的任务：
+1. 仔细观察第1张截图中的icon图案（忽略圆形底色）
+2. 逐一比较后续的透明背景候选icon
+3. 找出与截图中icon图案最相似的那个候选icon
+
+比较重点：
+- 轮廓形状
+- 主体图案
+- 颜色分布
+- 细节特征
+- 整体结构
+
+请输出严格JSON格式（不要输出Markdown代码块）：
+{
+  "best_match_index": 最佳匹配的索引数字（0到${iconsToCompare.length - 1}）,
+  "best_icon_filename": "最佳匹配的文件名",
+  "confidence": 0.0到1.0之间的置信度,
+  "reason": "为什么选择这个icon的理由，说明相似之处"
+}`;
+
+      const matchingReply = await callVisionApi(
+        config,
+        directMatchingPrompt,
+        [
+          { mimeType: 'image/png', base64: screenshotBase64 },
+          ...iconsToCompare.map(icon => ({ mimeType: 'image/png', base64: icon.base64 }))
+        ],
+        800
+      );
+
+      onLog(`[批次${batchIndex + 1}] AI响应: ${matchingReply.substring(0, 150)}...`);
+
+      try {
+        const matchingData = extractJsonObject(matchingReply);
+        const localIconIndex = typeof matchingData.best_match_index === 'number' 
+          ? matchingData.best_match_index 
+          : parseInt(String(matchingData.best_match_index), 10);
+
+        if (Number.isInteger(localIconIndex) && localIconIndex >= 0 && localIconIndex < iconsToCompare.length) {
+          const globalIconIndex = startIdx + localIconIndex;
+          const confidence = matchingData.confidence || 0;
+          
+          allBatchCandidates.push({
+            batchIndex,
+            confidence,
+            iconIndex: globalIconIndex,
+            iconName: iconLibrary[globalIconIndex].name,
+            reason: matchingData.reason || ''
+          });
+
+          onLog(`[批次${batchIndex + 1}] 候选: ${iconLibrary[globalIconIndex].name}, 置信度: ${confidence}`);
+        } else {
+          onLog(`[批次${batchIndex + 1}] 该批次未找到有效匹配`);
+        }
+      } catch (error) {
+        onLog(`[批次${batchIndex + 1}] 解析失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    // 汇总结果
+    if (allBatchCandidates.length === 0) {
+      const error = '所有批次均未找到有效匹配';
+      onLog(`[错误] ${error}`);
+      return { success: false, error };
+    }
+
+    onLog(`[汇总] 共收集到 ${allBatchCandidates.length} 个候选结果`);
+
+    // 按置信度排序
+    allBatchCandidates.sort((a, b) => b.confidence - a.confidence);
+    
+    const bestCandidate = allBatchCandidates[0];
+
+    // 如果有多个候选，进行最终比较
+    if (allBatchCandidates.length > 1) {
+      const topCandidates = allBatchCandidates.slice(0, Math.min(5, allBatchCandidates.length));
+      const topIcons = topCandidates.map(c => iconLibrary[c.iconIndex]);
+      
+      onLog(`[最终比较] 从 ${allBatchCandidates.length} 个候选中选出前 ${topCandidates.length} 个`);
+
+      const finalPrompt = `你是一个视觉比较专家。这是最终选择阶段。
+
+第1张图片：游戏截图
+第2张图片及之后：从各批次筛选出的最优候选icon
+
+候选清单（已按前期置信度排序）：
+${JSON.stringify(topIcons.map((icon, idx) => ({
+  id: `icon_${idx}`,
+  filename: icon.name,
+  index: idx,
+  previous_confidence: topCandidates[idx].confidence
+})), null, 2)}
+
+请从这些候选中选出与截图中icon最相似的那个。
+
+输出JSON格式：
+{
+  "best_match_index": 最终选择的索引（0到${topIcons.length - 1}）,
+  "confidence": 0.0到1.0,
+  "reason": "最终选择理由"
+}`;
+
+      const finalReply = await callVisionApi(
+        config,
+        finalPrompt,
+        [
+          { mimeType: 'image/png', base64: screenshotBase64 },
+          ...topIcons.map(icon => ({ mimeType: 'image/png', base64: icon.base64 }))
+        ],
+        600
+      );
+
+      onLog(`[最终比较] AI响应: ${finalReply}`);
+
+      try {
+        const finalData = extractJsonObject(finalReply);
+        const finalLocalIndex = typeof finalData.best_match_index === 'number'
+          ? finalData.best_match_index
+          : parseInt(String(finalData.best_match_index), 10);
+
+        if (Number.isInteger(finalLocalIndex) && finalLocalIndex >= 0 && finalLocalIndex < topIcons.length) {
+          const selectedCandidate = topCandidates[finalLocalIndex];
+          const name = recognitionData.item_name || '未识别名称';
+          
+          onLog('[成功] 直接视觉识别完成');
+          onLog(`[结果] 底色: ${color}`);
+          onLog(`[结果] 匹配icon: ${selectedCandidate.iconName} (索引${selectedCandidate.iconIndex})`);
+          onLog(`[结果] 道具名称: ${name}`);
+          onLog(`[结果] 最终置信度: ${finalData.confidence}`);
+          onLog(`[结果] 理由: ${finalData.reason}`);
+
+          return {
+            success: true,
+            color,
+            iconIndex: selectedCandidate.iconIndex,
+            name,
+            rawResponse: JSON.stringify({ recognition: recognitionData, final: finalData })
+          };
+        }
+      } catch (error) {
+        onLog(`[警告] 最终比较失败，使用最高置信度结果: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    // 使用最高置信度结果
+    const name = recognitionData.item_name || '未识别名称';
+    
+    onLog('[成功] 直接视觉识别完成');
+    onLog(`[结果] 底色: ${color}`);
+    onLog(`[结果] 匹配icon: ${bestCandidate.iconName} (索引${bestCandidate.iconIndex})`);
+    onLog(`[结果] 道具名称: ${name}`);
+    onLog(`[结果] 置信度: ${bestCandidate.confidence}`);
+    onLog(`[结果] 理由: ${bestCandidate.reason}`);
+
+    return {
+      success: true,
+      color,
+      iconIndex: bestCandidate.iconIndex,
+      name,
+      rawResponse: JSON.stringify({ recognition: recognitionData, matching: bestCandidate })
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    onLog(`[错误] 请求失败: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+}

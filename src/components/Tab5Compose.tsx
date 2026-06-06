@@ -1,6 +1,6 @@
-import { Download, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { Download, Eye, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { runVisionMatching } from '../utils/visionApiHelper';
+import { runDirectVisionMatching, runVisionMatching } from '../utils/visionApiHelper';
 import { UploadZone } from './common';
 
 interface IconLibraryItem {
@@ -40,12 +40,14 @@ export default function Tab5Compose() {
   const [recognizedOcrName, setRecognizedOcrName] = useState<string>('');
 
   // 批次大小控制
-  const [batchSize, setBatchSize] = useState<number>(12);
+  const [batchSize, setBatchSize] = useState<number>(20);
 
   // 日志状态
   const [logs, setLogs] = useState<string[]>([
     '[系统] 就绪。配置API Key后上传截图和透明icon库即可测试。',
-    '[说明] 将先传入参考截图，再传入透明 icon 候选，调用视觉模型直接识别截图中对应的 icon。'
+    '[说明] 提供两种识别方式：',
+    '[方式1] 描述匹配识别 - AI先分析截图特征，再根据描述匹配候选icon',
+    '[方式2] 直接视觉识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
   ]);
 
   // refs
@@ -231,6 +233,9 @@ export default function Tab5Compose() {
       return;
     }
 
+    addLog('========================================');
+    addLog('[识别方式] 描述匹配识别');
+    addLog('[说明] AI先分析截图特征，再根据描述匹配候选icon');
     addLog('[开始] 正在调用AI进行视觉匹配...');
     addLog(`[信息] 截图已加载，icon库包含 ${iconLibrary.length} 个候选`);
     addLog(`[配置] 使用端点: ${apiEndpoint}`);
@@ -268,8 +273,78 @@ export default function Tab5Compose() {
       }, 100);
 
       addLog('[完成] 已自动应用匹配结果并合成图片');
+      addLog('[识别方式] 描述匹配识别 ✓');
     } else {
       addLog(`[失败] 匹配未成功: ${result.error || '未知错误'}`);
+      addLog('[识别方式] 描述匹配识别 ✗');
+      alert(`匹配失败：${result.error || '未知错误'}\n\n请检查API配置和网络连接`);
+    }
+  };
+
+  // 直接视觉识别（新方法）
+  const handleRunDirectMatching = async () => {
+    if (!apiEndpoint || !apiKey || !selectedModel) {
+      addLog('[错误] 请先在顶部导航栏的 API 配置中配置 API 并选择模型');
+      alert('请先配置API端点、Key并选择模型！');
+      return;
+    }
+
+    if (!screenshotBase64) {
+      addLog('[错误] 请先上传游戏截图');
+      alert('请先上传游戏截图！');
+      return;
+    }
+
+    if (iconLibrary.length === 0) {
+      addLog('[错误] 请先添加透明icon库');
+      alert('请先添加透明icon到库中！');
+      return;
+    }
+
+    addLog('========================================');
+    addLog('[识别方式] 直接视觉识别');
+    addLog('[说明] AI将同时看到参考图和候选icon图片，进行直接视觉比较');
+    addLog('[开始] 使用直接视觉识别方法...');
+    addLog(`[信息] 截图已加载，icon库包含 ${iconLibrary.length} 个候选`);
+    addLog(`[配置] 使用端点: ${apiEndpoint}`);
+    addLog(`[配置] 使用模型: ${selectedModel}`);
+
+    // 调用新的直接视觉识别API
+    const result = await runDirectVisionMatching(
+      {
+        endpoint: apiEndpoint,
+        apiKey: apiKey,
+        model: selectedModel
+      },
+      screenshotBase64,
+      iconLibrary,
+      addLog,
+      batchSize
+    );
+
+    if (result.success && result.color && result.iconIndex !== undefined && result.name) {
+      const matchedIcon = iconLibrary[result.iconIndex];
+      if (!matchedIcon) {
+        addLog('[失败] AI返回的icon索引在当前候选库中不存在');
+        return;
+      }
+
+      // 设置匹配结果
+      setSelectedBaseMapColor(result.color);
+      setSelectedIconId(matchedIcon.id);
+      setRecognizedOcrName(result.name);
+      setCompositeFilename(`${result.name}_${result.color}.png`);
+
+      // 自动触发合成
+      setTimeout(() => {
+        renderComposite(result.color!, matchedIcon.id);
+      }, 100);
+
+      addLog('[完成] 已自动应用匹配结果并合成图片');
+      addLog('[识别方式] 直接视觉识别 ✓');
+    } else {
+      addLog(`[失败] 匹配未成功: ${result.error || '未知错误'}`);
+      addLog('[识别方式] 直接视觉识别 ✗');
       alert(`匹配失败：${result.error || '未知错误'}\n\n请检查API配置和网络连接`);
     }
   };
@@ -511,22 +586,6 @@ export default function Tab5Compose() {
                 日志
               </h3>
               <div className="flex gap-2 items-center">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-[10px] text-[#674b2d] font-bold whitespace-nowrap">每批数量</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={batchSize}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (val >= 1 && val <= 20) {
-                        setBatchSize(val);
-                      }
-                    }}
-                    className="w-14 text-xs px-2 py-1 border border-[#E9DFD0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8B6F47] bg-white text-center"
-                  />
-                </div>
                 <button
                   onClick={handleRunMatching}
                   disabled={!screenshotBase64 || iconLibrary.length === 0 || !apiEndpoint || !apiKey || !selectedModel}
@@ -535,6 +594,15 @@ export default function Tab5Compose() {
                 >
                   <Play size={13} fill="currentColor" />
                   一键识别
+                </button>
+                <button
+                  onClick={handleRunDirectMatching}
+                  disabled={!screenshotBase64 || iconLibrary.length === 0 || !apiEndpoint || !apiKey || !selectedModel}
+                  className="px-4 py-1.5 bg-gradient-to-r from-[#4A7C9E] to-[#5B8CAE] hover:from-[#396380] hover:to-[#4A7C9E] text-white text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500"
+                  title={!apiEndpoint || !apiKey || !selectedModel ? '请先配置API' : !screenshotBase64 ? '请先上传截图' : iconLibrary.length === 0 ? '请先添加icon' : '直接视觉识别 - AI将直接看到参考图和候选icon图片'}
+                >
+                  <Eye size={13} />
+                  直接视觉识别
                 </button>
                 <button
                   onClick={handleClearLogs}

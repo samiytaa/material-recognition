@@ -10,7 +10,7 @@ import Tab5Compose from './components/Tab5Compose';
 import { ProgressBar } from './components/common';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5'>('tab1');
+  const [activeTab, setActiveTab] = useState<'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5'>('tab5');
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [isApiConfigOpen, setIsApiConfigOpen] = useState<boolean>(false);
   const [apiEndpoint, setApiEndpoint] = useState<string>('');
