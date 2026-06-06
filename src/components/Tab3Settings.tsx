@@ -25,11 +25,11 @@ const DEFAULT_BASEMAP_GROUPS: MapGroup[] = [
     id: 'group_default',
     name: '道具底图',
     thumbnails: [
-      { id: 'basemap_1', image: '/basemaps/道具-咖.png', color: '咖' },
-      { id: 'basemap_2', image: '/basemaps/道具-紫.png', color: '紫' },
-      { id: 'basemap_3', image: '/basemaps/道具-绿.png', color: '绿' },
-      { id: 'basemap_4', image: '/basemaps/道具-蓝.png', color: '蓝' },
-      { id: 'basemap_5', image: '/basemaps/道具-金.png', color: '金' }
+      { id: 'basemap_1', image: '/basemaps/prop-brown.png', color: '咖' },
+      { id: 'basemap_2', image: '/basemaps/prop-purple.png', color: '紫' },
+      { id: 'basemap_3', image: '/basemaps/prop-green.png', color: '绿' },
+      { id: 'basemap_4', image: '/basemaps/prop-blue.png', color: '蓝' },
+      { id: 'basemap_5', image: '/basemaps/prop-gold.png', color: '金' }
     ]
   }
 ];
