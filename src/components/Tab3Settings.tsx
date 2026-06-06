@@ -54,18 +54,18 @@ export default function Tab3Settings() {
         const migrated = parsed.map((group: MapGroup) => {
           const newThumbnails = group.thumbnails.map((item: BasemapItem) => {
             let newImage = item.image;
-            // 检查是否包含中文路径
-            if (item.image.includes('道具-')) {
+            // 检查是否包含中文路径或相对路径
+            if (item.image.includes('道具-') || item.image.includes('basemaps/prop-')) {
               needsUpdate = true;
-              if (item.image.includes('道具-金.png')) {
+              if (item.image.includes('金')) {
                 newImage = propGold;
-              } else if (item.image.includes('道具-紫.png')) {
+              } else if (item.image.includes('紫')) {
                 newImage = propPurple;
-              } else if (item.image.includes('道具-蓝.png')) {
+              } else if (item.image.includes('蓝')) {
                 newImage = propBlue;
-              } else if (item.image.includes('道具-绿.png')) {
+              } else if (item.image.includes('绿')) {
                 newImage = propGreen;
-              } else if (item.image.includes('道具-咖.png')) {
+              } else if (item.image.includes('咖') || item.image.includes('brown')) {
                 newImage = propBrown;
               }
             }
@@ -100,21 +100,21 @@ export default function Tab3Settings() {
             return DEFAULT_BASEMAP_GROUPS;
           }
           
-          // 迁移旧的中文文件名到新的英文文件名
+          // 迁移旧的中文文件名和相对路径到新的导入变量
           const migrated = parsed.map((group: MapGroup) => ({
             ...group,
             thumbnails: group.thumbnails.map((item: BasemapItem) => {
-              // 如果是旧的中文路径，替换为新的英文路径
+              // 如果是旧的中文路径或相对路径，替换为导入的变量
               let newImage = item.image;
-              if (item.image.includes('道具-金.png')) {
+              if (item.image.includes('金') || item.image.includes('gold')) {
                 newImage = propGold;
-              } else if (item.image.includes('道具-紫.png')) {
+              } else if (item.image.includes('紫') || item.image.includes('purple')) {
                 newImage = propPurple;
-              } else if (item.image.includes('道具-蓝.png')) {
+              } else if (item.image.includes('蓝') || item.image.includes('blue')) {
                 newImage = propBlue;
-              } else if (item.image.includes('道具-绿.png')) {
+              } else if (item.image.includes('绿') || item.image.includes('green')) {
                 newImage = propGreen;
-              } else if (item.image.includes('道具-咖.png')) {
+              } else if (item.image.includes('咖') || item.image.includes('brown')) {
                 newImage = propBrown;
               }
               return { ...item, image: newImage };
