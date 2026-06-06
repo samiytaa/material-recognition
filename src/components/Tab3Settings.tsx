@@ -47,6 +47,29 @@ export default function Tab3Settings() {
           if (typeof firstThumb === 'string' || firstThumb?.image?.startsWith('data:image/svg+xml')) {
             return DEFAULT_BASEMAP_GROUPS;
           }
+          
+          // 迁移旧的中文文件名到新的英文文件名
+          const migrated = parsed.map((group: MapGroup) => ({
+            ...group,
+            thumbnails: group.thumbnails.map((item: BasemapItem) => {
+              // 如果是旧的中文路径，替换为新的英文路径
+              let newImage = item.image;
+              if (item.image.includes('道具-金.png')) {
+                newImage = '/basemaps/prop-gold.png';
+              } else if (item.image.includes('道具-紫.png')) {
+                newImage = '/basemaps/prop-purple.png';
+              } else if (item.image.includes('道具-蓝.png')) {
+                newImage = '/basemaps/prop-blue.png';
+              } else if (item.image.includes('道具-绿.png')) {
+                newImage = '/basemaps/prop-green.png';
+              } else if (item.image.includes('道具-咖.png')) {
+                newImage = '/basemaps/prop-brown.png';
+              }
+              return { ...item, image: newImage };
+            })
+          }));
+          
+          return migrated;
         }
         return parsed;
       } catch (e) { 
