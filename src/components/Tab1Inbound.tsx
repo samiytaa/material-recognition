@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { RefreshCw, FileText, Download, Send } from 'lucide-react';
-import { PropItem, parseFileName, reloadRules, OwnershipType, RecordRow } from '../types';
+import { RefreshCw, FileText, Download } from 'lucide-react';
+import { PropItem, parseFileName, reloadRules, OwnershipType } from '../types';
 import LogSidebar from './LogSidebar';
 import { StatsBar, CategoryFilter, PropGrid, PreviewPanel, OwnershipFilter } from './tab1';
 import { SearchInput, UploadZone, Button } from './common';
@@ -21,9 +21,7 @@ interface Tab1InboundProps {
   addLog: (msg: string) => void;
   clearLogs: () => void;
   clearAllProps: () => void;
-  recordList?: RecordRow[];
-  setRecordList?: React.Dispatch<React.SetStateAction<RecordRow[]>>;
-  addRecordLog?: (msg: string) => void;
+  onImportToTab2?: (images: Array<{ image: string; name: string }>) => void;
 }
 
 export default function Tab1Inbound({
@@ -39,9 +37,7 @@ export default function Tab1Inbound({
   addLog,
   clearLogs,
   clearAllProps,
-  recordList = [],
-  setRecordList,
-  addRecordLog
+  onImportToTab2
 }: Tab1InboundProps) {
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [expandedL1, setExpandedL1] = useState<string | null>(null);
@@ -49,7 +45,6 @@ export default function Tab1Inbound({
     type: 'all',
     name: null
   });
-  const [selectedPropIndices, setSelectedPropIndices] = useState<number[]>([]);
   
   const categoryTree = getDefaultCategoryTree();
 
@@ -209,78 +204,28 @@ export default function Tab1Inbound({
     alert(`重新解析完成！\n\n共处理 ${validProps.length} 个图片`);
   };
 
-  // 切换道具选择状态
-  const togglePropSelection = (index: number) => {
-    setSelectedPropIndices(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index)
-        : [...prev, index]
-    );
-  };
-
-  // 全选/取消全选
-  const toggleSelectAll = () => {
-    const currentPageIndices = filteredProps.map(({ idx }) => idx);
-    if (selectedPropIndices.length === currentPageIndices.length && currentPageIndices.every(i => selectedPropIndices.includes(i))) {
-      setSelectedPropIndices([]);
-    } else {
-      setSelectedPropIndices(currentPageIndices);
-    }
-  };
-
-  // 手动导入选中的道具到Tab2
+  // 导入图片到Tab2
   const importToTab2 = () => {
-    if (!setRecordList || !addRecordLog) {
-      alert('导入功能不可用');
+    const validProps = propsList.filter(p => p.image !== null);
+    if (validProps.length === 0) {
+      addLog('没有可导入的图片');
+      alert('请先导入图片后再导入到Tab2');
       return;
     }
 
-    if (selectedPropIndices.length === 0) {
-      alert('请先选择要导入的道具');
-      addLog('未选择任何道具');
+    if (!onImportToTab2) {
+      addLog('导入到Tab2功能未配置');
       return;
     }
 
-    // 获取Tab2中已存在的道具名称集合
-    const existingPropNames = new Set(recordList.map(row => row.propName));
-    
-    // 筛选出未重复的道具
-    const selectedProps = selectedPropIndices.map(idx => propsList[idx]).filter(p => p.image !== null);
-    const newProps = selectedProps.filter(prop => !existingPropNames.has(prop.displayName));
-    const duplicateCount = selectedProps.length - newProps.length;
-
-    if (newProps.length === 0) {
-      alert('所选道具已全部存在于Tab2中，未导入任何道具');
-      addLog(`导入失败：所选 ${selectedProps.length} 个道具均已存在于Tab2`);
-      addRecordLog(`导入失败：所选 ${selectedProps.length} 个道具均已存在`);
-      return;
-    }
-
-    // 创建新的记录行
-    const newRows: RecordRow[] = newProps.map(prop => ({
-      id: Date.now() + Math.random(),
-      originalImage: prop.image,
-      screenshot: null,
-      propName: prop.displayName,
-      baseColor: '金',
-      category: prop.category || '家具类',
-      previewWithBase: null,
-      outputName: `${prop.displayName}_金`
+    const imagesToImport = validProps.map(prop => ({
+      image: prop.image!,
+      name: prop.displayName
     }));
 
-    setRecordList(prev => [...prev, ...newRows]);
-    
-    const logMessage = duplicateCount > 0 
-      ? `✓ 手动导入完成：已导入 ${newRows.length} 个道具到Tab2（跳过 ${duplicateCount} 个重复）`
-      : `✓ 手动导入完成：已导入 ${newRows.length} 个道具到Tab2`;
-    
-    addLog(logMessage);
-    addRecordLog(logMessage);
-    
-    // 清空选择
-    setSelectedPropIndices([]);
-    
-    alert(`导入完成！\n\n已导入 ${newRows.length} 个道具${duplicateCount > 0 ? `\n跳过 ${duplicateCount} 个重复道具` : ''}`);
+    onImportToTab2(imagesToImport);
+    addLog(`✓ 成功导入 ${validProps.length} 张图片到Tab2的道具icon列`);
+    alert(`成功导入 ${validProps.length} 张图片到Tab2！`);
   };
 
   return (
@@ -300,16 +245,6 @@ export default function Tab1Inbound({
           />
 
           <div className="flex gap-2 flex-shrink-0 items-start pt-0.5">
-            {selectedPropIndices.length > 0 && (
-              <Button 
-                onClick={importToTab2} 
-                icon={Send} 
-                variant="primary" 
-                title={`导入选中的 ${selectedPropIndices.length} 个道具到Tab2`}
-              >
-                导入到Tab2 ({selectedPropIndices.length})
-              </Button>
-            )}
             <Button onClick={reparseAllImages} disabled={totalCount === 0} icon={RefreshCw} variant="secondary" title="重新解析所有图片的文件名">
               重新解析
             </Button>
@@ -344,9 +279,6 @@ export default function Tab1Inbound({
             previewIndex={previewIndex}
             onSelect={setPreviewIndex}
             onDelete={deleteSingleProp}
-            selectedIndices={selectedPropIndices}
-            onToggleSelection={togglePropSelection}
-            onToggleSelectAll={toggleSelectAll}
           />
         </div>
       </div>
@@ -366,6 +298,23 @@ export default function Tab1Inbound({
           <div id="previewArea" className="flex flex-col gap-2">
             <PreviewPanel prop={previewProp} />
           </div>
+        </div>
+
+        {/* Locked bottom submit / commit button action block */}
+        <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent">
+          <button
+            onClick={importToTab2}
+            disabled={totalCount === 0}
+            id="importToTab2Button"
+            className={`w-full py-3 px-4 rounded-xl text-xs font-bold tracking-widest uppercase shadow transition-all duration-200 cursor-pointer text-center flex items-center justify-center gap-2 ${
+              totalCount > 0 
+                ? 'bg-gradient-to-r from-[#7B68EE] to-[#6A5ACD] hover:to-[#5B4BBD] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
+                : 'bg-[#EDE9E3] text-[#AFA498] shadow-none cursor-not-allowed border border-[#DFD2BD]'
+            }`}
+          >
+            <Download size={16} />
+            导入到 Tab2
+          </button>
         </div>
       </div>
 

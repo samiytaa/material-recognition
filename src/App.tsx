@@ -189,63 +189,6 @@ export default function App() {
     }
   }, []);
 
-  // 自动同步 Tab1 的道具数据到 Tab2
-  useEffect(() => {
-    const validProps = propsList.filter(p => p.image !== null);
-    
-    if (validProps.length === 0) {
-      return;
-    }
-
-    // 为每个道具创建或更新 Tab2 中的记录
-    setRecordList(prev => {
-      // 创建一个映射，记录已存在的道具名称对应的行索引
-      const existingPropsMap = new Map<string, number>();
-      prev.forEach((row, index) => {
-        if (row.propName) {
-          existingPropsMap.set(row.propName, index);
-        }
-      });
-
-      // 收集需要更新的行和需要新增的行
-      const updatedRows = [...prev];
-      const newRows: RecordRow[] = [];
-
-      validProps.forEach((prop) => {
-        const existingIndex = existingPropsMap.get(prop.displayName);
-        
-        if (existingIndex !== undefined) {
-          // 更新已存在的行（只更新 originalImage，保留其他用户编辑的内容）
-          updatedRows[existingIndex] = {
-            ...updatedRows[existingIndex],
-            originalImage: prop.image,
-            propName: prop.displayName,
-            // 保留用户已设置的底色、分类等
-          };
-        } else {
-          // 创建新行
-          newRows.push({
-            id: Date.now() + Math.random(),
-            originalImage: prop.image,
-            screenshot: null,
-            propName: prop.displayName,
-            baseColor: '金',
-            category: prop.category || '家具类',
-            previewWithBase: null,
-            outputName: `${prop.displayName}_金`
-          });
-        }
-      });
-
-      // 如果有新增的行，记录日志
-      if (newRows.length > 0) {
-        addRecordLog(`✓ 自动同步：从 Tab1 导入 ${newRows.length} 个新道具`);
-      }
-
-      return [...updatedRows, ...newRows];
-    });
-  }, [propsList]);
-
   // 保存 API 配置
   const saveApiConfig = () => {
     localStorage.setItem('apiEndpoint', apiEndpoint);
@@ -491,9 +434,25 @@ export default function App() {
                   addLog={addLog}
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
-                  recordList={recordList}
-                  setRecordList={setRecordList}
-                  addRecordLog={addRecordLog}
+                  onImportToTab2={(images) => {
+                    // 将图片导入到 Tab2 的道具icon列，直接创建新条目
+                    setRecordList(prev => {
+                      const newRows = images.map((img, index) => ({
+                        id: prev.length + index,
+                        originalImage: img.image,
+                        screenshot: null,
+                        propName: img.name,
+                        baseColor: '金',
+                        category: '家具类',
+                        previewWithBase: null,
+                        outputName: `${img.name}_金`
+                      }));
+                      return [...prev, ...newRows];
+                    });
+                    // 切换到 Tab2
+                    setActiveTab('tab2');
+                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片，创建了 ${images.length} 个新条目`);
+                  }}
                 />
               </motion.div>
             ) : activeTab === 'tab2' ? (
