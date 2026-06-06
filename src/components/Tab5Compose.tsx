@@ -40,12 +40,12 @@ export default function Tab5Compose() {
   const [recognizedOcrName, setRecognizedOcrName] = useState<string>('');
 
   // 批次大小控制
-  const [batchSize, setBatchSize] = useState<number>(20);
+  const [batchSize, setBatchSize] = useState<number>(5);
 
   // 日志状态
   const [logs, setLogs] = useState<string[]>([
     '[系统] 就绪。配置API Key后上传截图和透明icon库即可测试。',
-    '[说明] 直接视觉识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
+    '[说明] 一键识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
   ]);
 
   // refs
@@ -69,6 +69,7 @@ export default function Tab5Compose() {
     const savedScreenshot = localStorage.getItem('tab5_screenshot');
     const savedScreenshotBase64 = localStorage.getItem('tab5_screenshot_base64');
     const savedIconLibrary = localStorage.getItem('tab5_icon_library');
+    const savedBatchSize = localStorage.getItem('tab5_batchSize');
 
     if (savedScreenshot && savedScreenshotBase64) {
       setScreenshotPreview(savedScreenshot);
@@ -84,6 +85,17 @@ export default function Tab5Compose() {
       } catch (e) {
         console.error('恢复icon库失败', e);
       }
+    }
+
+    // 恢复上次的批次数量设置，默认为5
+    if (savedBatchSize) {
+      const parsedBatchSize = parseInt(savedBatchSize);
+      if (!isNaN(parsedBatchSize) && parsedBatchSize >= 1 && parsedBatchSize <= 20) {
+        setBatchSize(parsedBatchSize);
+      }
+    } else {
+      // 首次使用时设置默认值为5
+      localStorage.setItem('tab5_batchSize', '5');
     }
 
     // 添加隐藏滚动条的样式
@@ -211,7 +223,7 @@ export default function Tab5Compose() {
     }
   };
 
-  // 直接视觉识别
+  // 直接视觉识别（提示词在 visionApiHelper.ts 中统一定义，Tab2 也使用同一提示词）
   const handleRunDirectMatching = async () => {
     if (!apiEndpoint || !apiKey || !selectedModel) {
       addLog('[错误] 请先在顶部导航栏的 API 配置中配置 API 并选择模型');
@@ -232,9 +244,9 @@ export default function Tab5Compose() {
     }
 
     addLog('========================================');
-    addLog('[识别方式] 直接视觉识别');
+    addLog('[识别方式] 一键识别');
     addLog('[说明] AI将同时看到参考图和候选icon图片，进行直接视觉比较');
-    addLog('[开始] 使用直接视觉识别方法...');
+    addLog('[开始] 使用一键识别方法...');
     addLog(`[信息] 截图已加载，icon库包含 ${iconLibrary.length} 个候选`);
     addLog(`[配置] 使用端点: ${apiEndpoint}`);
     addLog(`[配置] 使用模型: ${selectedModel}`);
@@ -271,10 +283,10 @@ export default function Tab5Compose() {
       }, 100);
 
       addLog('[完成] 已自动应用匹配结果并合成图片');
-      addLog('[识别方式] 直接视觉识别 ✓');
+      addLog('[识别方式] 一键识别 ✓');
     } else {
       addLog(`[失败] 匹配未成功: ${result.error || '未知错误'}`);
-      addLog('[识别方式] 直接视觉识别 ✗');
+      addLog('[识别方式] 一键识别 ✗');
       alert(`匹配失败：${result.error || '未知错误'}\n\n请检查API配置和网络连接`);
     }
   };
@@ -527,6 +539,8 @@ export default function Tab5Compose() {
                       const val = parseInt(e.target.value);
                       if (val >= 1 && val <= 20) {
                         setBatchSize(val);
+                        // 保存到localStorage
+                        localStorage.setItem('tab5_batchSize', val.toString());
                       }
                     }}
                     className="w-14 text-xs px-2 py-1 border border-[#E9DFD0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8B6F47] bg-white text-center"
@@ -536,10 +550,10 @@ export default function Tab5Compose() {
                   onClick={handleRunDirectMatching}
                   disabled={!screenshotBase64 || iconLibrary.length === 0 || !apiEndpoint || !apiKey || !selectedModel}
                   className="px-4 py-1.5 bg-gradient-to-r from-[#4A7C9E] to-[#5B8CAE] hover:from-[#396380] hover:to-[#4A7C9E] text-white text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500"
-                  title={!apiEndpoint || !apiKey || !selectedModel ? '请先配置API' : !screenshotBase64 ? '请先上传截图' : iconLibrary.length === 0 ? '请先添加icon' : '直接视觉识别 - AI将直接看到参考图和候选icon图片'}
+                  title={!apiEndpoint || !apiKey || !selectedModel ? '请先配置API' : !screenshotBase64 ? '请先上传截图' : iconLibrary.length === 0 ? '请先添加icon' : '一键识别 - AI将直接看到参考图和候选icon图片'}
                 >
                   <Eye size={13} />
-                  直接视觉识别
+                  一键识别
                 </button>
                 <button
                   onClick={handleClearLogs}

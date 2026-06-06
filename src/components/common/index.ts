@@ -5,3 +5,4 @@ export { default as Button } from './Button';
 export { default as Modal } from './Modal';
 export { default as Card, CardHeader, CardTitle } from './Card';
 export { default as ProgressBar } from './ProgressBar';
+export { default as RecognitionProgressModal } from './RecognitionProgressModal';

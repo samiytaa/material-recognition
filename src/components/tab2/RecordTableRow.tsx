@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { Undo2, ZoomIn, X } from 'lucide-react';
 import { RecordRow } from '../../types';
 
 interface RecordTableRowProps {
   row: RecordRow;
   rowIndex: number;
   availableColors: string[];
-  availableCategories: string[];
   basemapGroups: MapGroup[];
   selectedGroupId: string;
   isSelected: boolean;
@@ -13,6 +13,7 @@ interface RecordTableRowProps {
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
+  onReturnScreenshot?: (rowId: number) => void;
 }
 
 interface BasemapItem {
@@ -27,11 +28,46 @@ interface MapGroup {
   thumbnails: BasemapItem[];
 }
 
+// 放大预览弹窗组件
+function ImageZoomModal({ imageUrl, imageName, onClose }: { imageUrl: string; imageName: string; onClose: () => void }) {
+  return (
+    <div 
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-8"
+      onClick={onClose}
+    >
+      <div 
+        className="relative max-w-[90vw] max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 标题栏 */}
+        <div className="px-4 py-3 bg-[#FAF8F4] border-b border-[#E9DFDB] flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[#674b2d]">{imageName}</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+            title="关闭"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        
+        {/* 图片内容 */}
+        <div className="p-4 overflow-auto max-h-[calc(90vh-60px)]">
+          <img 
+            src={imageUrl}
+            alt={imageName}
+            className="max-w-full h-auto object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RecordTableRow({
   row,
   rowIndex,
   availableColors,
-  availableCategories,
   basemapGroups,
   selectedGroupId,
   isSelected,
@@ -39,8 +75,10 @@ export default function RecordTableRow({
   onViewImage,
   onUploadImage,
   onUpdateRow,
+  onReturnScreenshot,
 }: RecordTableRowProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
 
   // 当原图、底色或底图组改变时，自动生成预览
   useEffect(() => {
@@ -98,168 +136,213 @@ export default function RecordTableRow({
   }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups]);
 
   return (
-    <tr className="hover:bg-[#FDFBF8]/80 group transition-all">
-      {/* 选择框列 */}
-      <td className="p-2 border border-[#F2ECE5] text-center w-[40px]">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => onToggleSelection(rowIndex)}
-          className="w-4 h-4 cursor-pointer accent-[#8B6F47]"
+    <>
+      <tr className="hover:bg-[#FDFBF8]/80 group transition-all">
+        {/* 选择框列 */}
+        <td className="p-2 border border-[#F2ECE5] text-center w-[40px]">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelection(rowIndex)}
+            className="w-4 h-4 cursor-pointer accent-[#8B6F47]"
+          />
+        </td>
+
+        {/* 道具icon */}
+        <td className="p-2 border border-[#F2ECE5] text-center">
+          <div 
+            className={`thumbnail-cell relative w-full h-16 rounded-lg border flex items-center justify-center transition-all ${
+              row.originalImage 
+              ? 'border-gold-shiny/50 bg-transparent group/icon' 
+              : 'border-dashed border-gold-medium/60 bg-[#FAF7F2] hover:bg-[#F2ECE4] cursor-pointer'
+            }`}
+            style={row.originalImage ? {
+              backgroundImage: `url(${row.originalImage})`,
+              backgroundSize: 'contain',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            } : undefined}
+            onClick={() => {
+              if (!row.originalImage) {
+                onUploadImage(rowIndex, 'original');
+              }
+            }}
+          >
+            {!row.originalImage && (
+              <span className="text-[10px] font-bold text-gold-deep/60 tracking-wider">上传原图</span>
+            )}
+            
+            {row.originalImage && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomImage({ url: row.originalImage!, name: `${row.propName || '未命名'} - 道具icon` });
+                }}
+                className="absolute top-1 right-1 w-6 h-6 bg-blue-500/90 hover:bg-blue-600 text-white rounded-md opacity-0 group-hover/icon:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
+                title="放大查看"
+              >
+                <ZoomIn size={12} />
+              </button>
+            )}
+          </div>
+        </td>
+
+        {/* 游戏截图 */}
+        <td className="p-2 border border-[#F2ECE5] text-center">
+          <div 
+            className={`thumbnail-cell relative w-full h-16 rounded-lg border flex items-center justify-center transition-all ${
+              row.screenshot 
+              ? 'border-gold-shiny/50 bg-transparent group/screenshot' 
+              : 'border-dashed border-gold-medium/60 bg-[#FAF7F2] hover:bg-[#F2ECE4] cursor-pointer'
+            }`}
+            style={row.screenshot ? {
+              backgroundImage: `url(${row.screenshot})`,
+              backgroundSize: 'contain',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            } : undefined}
+            onClick={() => {
+              if (!row.screenshot) {
+                onUploadImage(rowIndex, 'screenshot');
+              }
+            }}
+          >
+            {!row.screenshot && (
+              <span className="text-[10px] font-bold text-gold-deep/60 tracking-wider">上传截图</span>
+            )}
+            
+            {row.screenshot && (
+              <>
+                {/* 放大按钮 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setZoomImage({ url: row.screenshot!, name: `${row.propName || '未命名'} - 游戏截图` });
+                  }}
+                  className="absolute top-1 right-1 w-6 h-6 bg-blue-500/90 hover:bg-blue-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
+                  title="放大查看"
+                >
+                  <ZoomIn size={12} />
+                </button>
+                
+                {/* 退回按钮 */}
+                {onReturnScreenshot && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('确定要将此截图退回到待处理列表吗？')) {
+                        onReturnScreenshot(rowIndex);
+                      }
+                    }}
+                    className="absolute top-1 left-1 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
+                    title="退回到截图列表"
+                  >
+                    <Undo2 size={12} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </td>
+
+        {/* 道具名 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <input
+            type="text"
+            value={row.propName}
+            onChange={(e) => {
+              const val = e.target.value;
+              onUpdateRow(rowIndex, {
+                propName: val,
+                outputName: val ? `${val}_${row.baseColor}` : ''
+              });
+            }}
+            placeholder="双击修改道具名"
+            className="w-full text-center text-xs px-2 py-1.5 bg-transparent border border-transparent hover:border-[#DFD2BD]/60 focus:border-gold-shiny focus:bg-[#FFFDF7] outline-none text-[#674b2d] font-semibold rounded transition-all"
+          />
+        </td>
+
+        {/* 底色 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <select
+            value={row.baseColor}
+            onChange={(e) => {
+              const val = e.target.value;
+              onUpdateRow(rowIndex, {
+                baseColor: val,
+                outputName: row.propName ? `${row.propName}_${val}` : ''
+              });
+            }}
+            className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
+          >
+            {availableColors.map(color => (
+              <option key={color} value={color}>{color}</option>
+            ))}
+          </select>
+        </td>
+
+        {/* 类型（从Tab1同步，不可修改） */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
+            {row.propType || '未知'}
+          </div>
+        </td>
+
+        {/* 分类（从Tab1同步，不可修改） */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
+            {row.propCategory || '未知'}
+          </div>
+        </td>
+
+        {/* 相关（从Tab1同步，不可修改） */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
+            {row.propRelated || '无'}
+          </div>
+        </td>
+
+        {/* 加底预览 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <div 
+            className={`preview-thumbnail w-full h-16 rounded-lg border flex items-center justify-center ${
+              previewUrl 
+              ? 'border-gold-shiny/50' 
+              : 'border-[#F2ECE5] bg-[#FDFBF9]'
+            }`}
+            style={previewUrl ? {
+              backgroundImage: `url(${previewUrl})`,
+              backgroundSize: 'contain',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            } : undefined}
+          >
+            {!previewUrl && (
+              <span className="text-[9px] font-bold text-[#C5B198]">待加底</span>
+            )}
+          </div>
+        </td>
+
+        {/* 输出名称 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <input
+            type="text"
+            value={row.outputName}
+            disabled
+            placeholder="输出名称"
+            className="w-full text-center text-xs font-mono font-bold text-gold-deep bg-[#FAF7F2] p-1.5 rounded cursor-not-allowed border border-[#F2ECE5]"
+          />
+        </td>
+      </tr>
+      
+      {/* 放大预览弹窗 */}
+      {zoomImage && (
+        <ImageZoomModal
+          imageUrl={zoomImage.url}
+          imageName={zoomImage.name}
+          onClose={() => setZoomImage(null)}
         />
-      </td>
-
-      {/* 道具icon */}
-      <td className="p-2 border border-[#F2ECE5] text-center">
-        <div 
-          onClick={() => {
-            if (row.originalImage) {
-              onViewImage(rowIndex, 'original');
-            } else {
-              onUploadImage(rowIndex, 'original');
-            }
-          }}
-          className={`thumbnail-cell relative w-full h-16 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${
-            row.originalImage 
-            ? 'border-gold-shiny/50 bg-transparent' 
-            : 'border-dashed border-gold-medium/60 bg-[#FAF7F2] hover:bg-[#F2ECE4]'
-          }`}
-          style={row.originalImage ? {
-            backgroundImage: `url(${row.originalImage})`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          } : undefined}
-        >
-          {!row.originalImage && (
-            <span className="text-[10px] font-bold text-gold-deep/60 tracking-wider">上传原图</span>
-          )}
-          
-          {row.originalImage && (
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-lg text-white text-[9px] font-semibold transition-opacity">
-              点击大图
-            </div>
-          )}
-        </div>
-      </td>
-
-      {/* 游戏截图 */}
-      <td className="p-2 border border-[#F2ECE5] text-center">
-        <div 
-          onClick={() => {
-            if (row.screenshot) {
-              onViewImage(rowIndex, 'screenshot');
-            } else {
-              onUploadImage(rowIndex, 'screenshot');
-            }
-          }}
-          className={`thumbnail-cell relative w-full h-16 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${
-            row.screenshot 
-            ? 'border-gold-shiny/50 bg-transparent' 
-            : 'border-dashed border-gold-medium/60 bg-[#FAF7F2] hover:bg-[#F2ECE4]'
-          }`}
-          style={row.screenshot ? {
-            backgroundImage: `url(${row.screenshot})`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          } : undefined}
-        >
-          {!row.screenshot && (
-            <span className="text-[10px] font-bold text-gold-deep/60 tracking-wider">上传截图</span>
-          )}
-          
-          {row.screenshot && (
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-lg text-white text-[9px] font-semibold transition-opacity">
-              点击大图
-            </div>
-          )}
-        </div>
-      </td>
-
-      {/* 道具名 */}
-      <td className="p-2 border border-[#F2ECE5]">
-        <input
-          type="text"
-          value={row.propName}
-          onChange={(e) => {
-            const val = e.target.value;
-            onUpdateRow(rowIndex, {
-              propName: val,
-              outputName: val ? `${val}_${row.baseColor}` : ''
-            });
-          }}
-          placeholder="双击修改道具名"
-          className="w-full text-center text-xs px-2 py-1.5 bg-transparent border border-transparent hover:border-[#DFD2BD]/60 focus:border-gold-shiny focus:bg-[#FFFDF7] outline-none text-[#674b2d] font-semibold rounded transition-all"
-        />
-      </td>
-
-      {/* 底色 */}
-      <td className="p-2 border border-[#F2ECE5]">
-        <select
-          value={row.baseColor}
-          onChange={(e) => {
-            const val = e.target.value;
-            onUpdateRow(rowIndex, {
-              baseColor: val,
-              outputName: row.propName ? `${row.propName}_${val}` : ''
-            });
-          }}
-          className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
-        >
-          {availableColors.map(color => (
-            <option key={color} value={color}>{color}</option>
-          ))}
-        </select>
-      </td>
-
-      {/* 分类 */}
-      <td className="p-2 border border-[#F2ECE5]">
-        <select
-          value={row.category}
-          onChange={(e) => {
-            const val = e.target.value;
-            onUpdateRow(rowIndex, { category: val });
-          }}
-          className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
-        >
-          {availableCategories.map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </td>
-
-      {/* 加底预览 */}
-      <td className="p-2 border border-[#F2ECE5]">
-        <div 
-          className={`preview-thumbnail w-full h-16 rounded-lg border flex items-center justify-center ${
-            previewUrl 
-            ? 'border-gold-shiny/50' 
-            : 'border-[#F2ECE5] bg-[#FDFBF9]'
-          }`}
-          style={previewUrl ? {
-            backgroundImage: `url(${previewUrl})`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          } : undefined}
-        >
-          {!previewUrl && (
-            <span className="text-[9px] font-bold text-[#C5B198]">待加底</span>
-          )}
-        </div>
-      </td>
-
-      {/* 输出名称 */}
-      <td className="p-2 border border-[#F2ECE5]">
-        <input
-          type="text"
-          value={row.outputName}
-          disabled
-          placeholder="输出名称"
-          className="w-full text-center text-xs font-mono font-bold text-gold-deep bg-[#FAF7F2] p-1.5 rounded cursor-not-allowed border border-[#F2ECE5]"
-        />
-      </td>
-    </tr>
+      )}
+    </>
   );
 }

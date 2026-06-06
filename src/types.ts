@@ -100,10 +100,15 @@ export interface PropItem {
 export interface RecordRow {
   id: number;
   originalImage: string | null;
+  originalImageFileName?: string; // 保存原始icon文件名（用于AI识别）
   screenshot: string | null;
+  screenshotOriginalName?: string; // 保存原始截图文件名
   propName: string;
   baseColor: string;
-  category: string;
+  // 新增三列：类型、分类、相关（从Tab1数据同步，前端不可修改）
+  propType: string; // 道具类型（如：其他道具、家具等）
+  propCategory: string; // 道具分类（如：初见日道具、密探头像等）
+  propRelated: string; // 相关角色（如：男主-刘辩、密探-孙辅、无）
   previewWithBase: string | null;
   outputName: string;
 }

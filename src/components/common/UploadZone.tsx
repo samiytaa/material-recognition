@@ -52,7 +52,7 @@ export default function UploadZone({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={handleClick}
-        className="drag-area group flex flex-col items-center justify-center py-16 px-6 text-center cursor-pointer transition-all duration-200 hover:bg-gold-light"
+        className="drag-area group flex flex-col items-center justify-center py-8 px-6 text-center cursor-pointer transition-all duration-200 hover:bg-gold-light"
       >
         <span className="text-sm font-bold text-[#674b2d] tracking-wide mb-1">
           {text}

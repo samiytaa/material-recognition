@@ -21,7 +21,14 @@ interface Tab1InboundProps {
   addLog: (msg: string) => void;
   clearLogs: () => void;
   clearAllProps: () => void;
-  onImportToTab2?: (images: Array<{ image: string; name: string }>) => void;
+  onImportToTab2?: (images: Array<{ 
+    image: string; 
+    name: string; 
+    fileName: string; 
+    propType: string; 
+    propCategory: string; 
+    propRelated: string;
+  }>) => void;
 }
 
 export default function Tab1Inbound({
@@ -218,14 +225,34 @@ export default function Tab1Inbound({
       return;
     }
 
-    const imagesToImport = validProps.map(prop => ({
-      image: prop.image!,
-      name: prop.displayName
-    }));
+    const imagesToImport = validProps.map(prop => {
+      // 生成类型信息
+      const propType = prop.type === 'furniture' ? '家具' : '其他道具';
+      
+      // 使用分类信息
+      const propCategory = prop.category;
+      
+      // 生成相关信息（男主/密探）
+      let propRelated = '无';
+      if (prop.ownership.type === 'male_lead' && prop.ownership.name) {
+        propRelated = `男主-${prop.ownership.name}`;
+      } else if (prop.ownership.type === 'spy' && prop.ownership.name) {
+        propRelated = `密探-${prop.ownership.name}`;
+      }
+      
+      return {
+        image: prop.image!,
+        name: prop.displayName,
+        fileName: prop.name, // 传递原始文件名
+        propType,
+        propCategory,
+        propRelated
+      };
+    });
 
     onImportToTab2(imagesToImport);
-    addLog(`✓ 成功导入 ${validProps.length} 张图片到Tab2的道具icon列`);
-    alert(`成功导入 ${validProps.length} 张图片到Tab2！`);
+    addLog(`✓ 成功导入 ${validProps.length} 张图片到Tab2的道具icon列（含类型、分类、相关信息）`);
+    alert(`成功导入 ${validProps.length} 张图片到Tab2！\n\n已同步：类型、分类、相关角色信息`);
   };
 
   return (

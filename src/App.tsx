@@ -32,7 +32,17 @@ export default function App() {
   const [logs, setLogs] = useState<string[]>(['系统初始化完成']);
 
   // Tab 2 state configurations
-  const [recordList, setRecordList] = useState<RecordRow[]>([]);
+  const [recordList, setRecordList] = useState<RecordRow[]>(() => {
+    try {
+      const savedRecordList = localStorage.getItem('tab2_recordList');
+      if (savedRecordList) {
+        return JSON.parse(savedRecordList);
+      }
+    } catch (error) {
+      console.error('加载Tab2记录列表失败:', error);
+    }
+    return [];
+  });
 
   const [recordLogs, setRecordLogs] = useState<string[]>(['Tab2 追记系统初始化完成']);
   const [selectedRecordPart, setSelectedRecordPart] = useState<{ rowId: number; type: 'original' | 'screenshot' } | null>(null);
@@ -435,15 +445,18 @@ export default function App() {
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
                   onImportToTab2={(images) => {
-                    // 将图片导入到 Tab2 的道具icon列，直接创建新条目
+                    // 将图片导入到 Tab2 的道具icon列，直接创建新条目（含类型、分类、相关信息）
                     setRecordList(prev => {
                       const newRows = images.map((img, index) => ({
                         id: prev.length + index,
                         originalImage: img.image,
+                        originalImageFileName: img.fileName, // 保存原始文件名（用于AI识别）
                         screenshot: null,
                         propName: img.name,
                         baseColor: '金',
-                        category: '家具类',
+                        propType: img.propType, // 类型（家具/其他道具）
+                        propCategory: img.propCategory, // 分类（从Tab1同步）
+                        propRelated: img.propRelated, // 相关角色（男主-XXX / 密探-XXX / 无）
                         previewWithBase: null,
                         outputName: `${img.name}_金`
                       }));
@@ -451,7 +464,7 @@ export default function App() {
                     });
                     // 切换到 Tab2
                     setActiveTab('tab2');
-                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片，创建了 ${images.length} 个新条目`);
+                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片，创建了 ${images.length} 个新条目（含类型、分类、相关信息）`);
                   }}
                 />
               </motion.div>

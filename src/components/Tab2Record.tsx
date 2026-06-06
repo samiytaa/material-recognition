@@ -5,7 +5,6 @@ import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
 import { UploadZone, Button, Card, RecognitionProgressModal } from './common';
 import { readFileAsDataURL, getFileNameWithoutExtension } from '../utils/fileHelper';
-import categoryConfigModule from '../categoryConfig.json';
 
 interface BasemapItem {
   id: string;
@@ -129,48 +128,6 @@ export default function Tab2Record({
   const [basemapGroups, setBasemapGroups] = useState<MapGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [availableColors, setAvailableColors] = useState<string[]>(['金', '紫', '蓝', '绿', '咖']);
-  
-  // 从 categoryConfig 中提取所有分类
-  const availableCategories = useMemo(() => {
-    const categories: string[] = [];
-    
-    // 使用导入的 categoryConfig
-    const config = categoryConfigModule;
-    
-    // 除家具以外的道具
-    const nonFurniture = config['除家具以外的道具'] || {};
-    for (const items of Object.values(nonFurniture)) {
-      if (Array.isArray(items)) {
-        categories.push(...items);
-      }
-    }
-    
-    // 家具相关分类
-    const furniture = config['家具'] || {};
-    
-    // 套装
-    if (Array.isArray(furniture['套装'])) {
-      categories.push(...furniture['套装']);
-    }
-    
-    // 自由装修
-    const free = furniture['自由装修'];
-    if (free) {
-      for (const items of Object.values(free)) {
-        if (Array.isArray(items)) {
-          categories.push(...items);
-        } else if (typeof items === 'object') {
-          for (const subitems of Object.values(items)) {
-            if (Array.isArray(subitems)) {
-              categories.push(...subitems);
-            }
-          }
-        }
-      }
-    }
-    
-    return Array.from(new Set(categories)).sort();
-  }, []);
   
   // 从localStorage加载底图组配置
   useEffect(() => {
@@ -356,7 +313,8 @@ export default function Tab2Record({
         } else {
           updated[rowId] = {
             ...updated[rowId],
-            originalImage: dataUrl
+            originalImage: dataUrl,
+            originalImageFileName: file.name // 保存原始icon文件名（用于AI识别）
           };
         }
         return updated;
@@ -450,8 +408,11 @@ export default function Tab2Record({
         .map((row, idx) => ({
           rowIndex: idx,
           originalImage: row.originalImage,
+          originalImageFileName: row.originalImageFileName, // 获取原始文件名
           propName: row.propName,
-          category: row.category
+          propType: row.propType,
+          propCategory: row.propCategory,
+          propRelated: row.propRelated
         }))
         .filter(item => item.originalImage !== null);
 
@@ -462,7 +423,7 @@ export default function Tab2Record({
       }
 
       // 构建icon库：从表格的originalImage中提取
-      const iconLibrary: Array<{id: string; name: string; base64: string; propName: string; category: string; rowIndex: number}> = [];
+      const iconLibrary: Array<{id: string; name: string; base64: string; propName: string; propType: string; propCategory: string; propRelated: string; rowIndex: number}> = [];
       for (const item of tableIcons) {
         try {
           // 提取base64（去掉data:image/xxx;base64,前缀）
@@ -470,10 +431,13 @@ export default function Tab2Record({
           if (base64) {
             iconLibrary.push({
               id: `row_${item.rowIndex}`,
-              name: item.propName || `第${item.rowIndex + 1}行`,
+              // 优先使用原始文件名（与Tab5一致），fallback到propName
+              name: item.originalImageFileName || item.propName || `第${item.rowIndex + 1}行`,
               base64: base64,
               propName: item.propName || '未命名',
-              category: item.category || '未分类',
+              propType: item.propType || '未知',
+              propCategory: item.propCategory || '未知',
+              propRelated: item.propRelated || '无',
               rowIndex: item.rowIndex
             });
           }
@@ -509,10 +473,10 @@ export default function Tab2Record({
         logs: []
       });
 
-      // 导入识别函数
+      // 导入识别函数（与Tab5共用同一识别逻辑和提示词）
       const { runDirectVisionMatching } = await import('../utils/visionApiHelper');
       
-      const matchedScreenshots: Array<{screenshotIndex: number; rowIndex: number; name: string; color: string; category: string}> = [];
+      const matchedScreenshots: Array<{screenshotIndex: number; rowIndex: number; name: string; color: string}> = [];
       const failedList: string[] = [];
       const usedRowIndices = new Set<number>(); // 记录已使用的表格行索引
       
@@ -584,10 +548,12 @@ export default function Tab2Record({
               name: icon.name,
               base64: icon.base64,
               propName: icon.propName,
-              category: icon.category
+              propType: icon.propType,
+              propCategory: icon.propCategory,
+              propRelated: icon.propRelated
             })),
             (msg) => addRecordLog(`[处理] ${msg}`),
-            5 // 批次大小：最多5个icon
+            5 // 批次大小：5个icon（与Tab5默认值一致）
           );
 
           if (result.success && result.color && result.iconIndex !== undefined && result.name) {
@@ -607,26 +573,16 @@ export default function Tab2Record({
             // 标记该行已使用（串行处理，无竞态条件）
             usedRowIndices.add(matchedRowIndex);
 
-            // 判断分类
-            let detectedCategory = '其他类';
-            for (const category of availableCategories) {
-              if (result.name.includes(category)) {
-                detectedCategory = category;
-                break;
-              }
-            }
-
-            // 记录匹配结果
+            // 记录匹配结果（不再判断分类，因为分类已从Tab1同步）
             matchedScreenshots.push({
               screenshotIndex: index,
               rowIndex: matchedRowIndex,
               name: result.name,
-              color: result.color,
-              category: detectedCategory
+              color: result.color
             });
 
             successCount++;
-            addRecordLog(`[处理] ✓ ${screenshot.name}: 匹配到第${matchedRowIndex + 1}行 (${matchedIcon.propName}) - ${result.name} - ${result.color} - ${detectedCategory}`);
+            addRecordLog(`[处理] ✓ ${screenshot.name}: 匹配到第${matchedRowIndex + 1}行 (${matchedIcon.propName}) - ${result.name} - ${result.color}`);
             updateRecognitionProgress(index + 1, successCount, failCount, `已完成: ${screenshot.name}`, `✓ ${screenshot.name} → ${result.name} (${result.color})`);
           } else {
             // 识别失败
@@ -660,7 +616,7 @@ export default function Tab2Record({
                 screenshotOriginalName: screenshot.name, // 保存原始文件名
                 propName: match.name,
                 baseColor: match.color,
-                category: match.category,
+                // 保持原有的类型、分类、相关字段不变（从Tab1导入）
                 outputName: `${match.name}_${match.color}`
               };
             }
@@ -882,7 +838,9 @@ export default function Tab2Record({
     const saveData = validRows.map(row => ({
       propName: row.propName,
       baseColor: row.baseColor,
-      category: row.category,
+      propType: row.propType,
+      propCategory: row.propCategory,
+      propRelated: row.propRelated,
       outputName: row.outputName,
       hasOriginalImage: !!row.originalImage,
       hasScreenshot: !!row.screenshot,
@@ -1028,7 +986,6 @@ export default function Tab2Record({
           <RecordTable
             records={filteredRecordList}
             availableColors={availableColors}
-            availableCategories={availableCategories}
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
             selectedRowIds={selectedRowIds}
@@ -1061,9 +1018,6 @@ export default function Tab2Record({
               });
               if (updates.baseColor) {
                 addRecordLog(`第 ${originalRowIndex + 1} 行底色变更为: ${updates.baseColor}`);
-              }
-              if (updates.category) {
-                addRecordLog(`第 ${originalRowIndex + 1} 行分类变更为: ${updates.category}`);
               }
             }}
             onReturnScreenshot={(filteredRowIndex) => {

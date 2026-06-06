@@ -230,6 +230,13 @@ async function runWithConcurrencyLimit<T>(
 
 /**
  * 新的识别方式：直接将截图和icon图片一起传给AI进行视觉比较（支持并行批次处理）
+ * 
+ * **重要说明：此函数及其内部提示词被 Tab2 和 Tab5 共同使用**
+ * - Tab2: 批量处理上传的截图，匹配表格中的icon
+ * - Tab5: 单张截图的快速测试和验证
+ * 
+ * 两个Tab使用相同的识别逻辑和提示词，确保识别结果的一致性
+ * 
  * @param config API配置
  * @param screenshotBase64 截图的base64（不含前缀）
  * @param iconLibrary icon库数组，每个包含base64

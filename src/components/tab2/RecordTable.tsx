@@ -6,7 +6,6 @@ import RecordTableRow from './RecordTableRow';
 interface RecordTableProps {
   records: RecordRow[];
   availableColors: string[];
-  availableCategories: string[];
   basemapGroups: MapGroup[];
   selectedGroupId: string;
   selectedRowIds: number[];
@@ -15,6 +14,7 @@ interface RecordTableProps {
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
+  onReturnScreenshot?: (rowId: number) => void;
 }
 
 interface BasemapItem {
@@ -32,7 +32,6 @@ interface MapGroup {
 export default function RecordTable({
   records,
   availableColors,
-  availableCategories,
   basemapGroups,
   selectedGroupId,
   selectedRowIds,
@@ -41,6 +40,7 @@ export default function RecordTable({
   onViewImage,
   onUploadImage,
   onUpdateRow,
+  onReturnScreenshot,
 }: RecordTableProps) {
   if (records.length === 0) {
     return (
@@ -83,8 +83,14 @@ export default function RecordTable({
           <th className="w-[90px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             底色
           </th>
+          <th className="w-[80px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
+            类型
+          </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             分类
+          </th>
+          <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
+            相关
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             加底预览
@@ -101,14 +107,14 @@ export default function RecordTable({
             row={row}
             rowIndex={idx}
             availableColors={availableColors}
-            availableCategories={availableCategories}
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
-            isSelected={selectedRowIds.includes(idx)}
+            isSelected={selectedRowIds.includes(row.id)}
             onToggleSelection={onToggleRowSelection}
             onViewImage={onViewImage}
             onUploadImage={onUploadImage}
             onUpdateRow={onUpdateRow}
+            onReturnScreenshot={onReturnScreenshot}
           />
         ))}
       </tbody>
