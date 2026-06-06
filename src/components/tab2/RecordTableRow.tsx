@@ -100,15 +100,14 @@ export default function RecordTableRow({
 
   return (
     <tr className="hover:bg-[#FDFBF8]/80 group transition-all">
-      {/* 删除按钮列 */}
+      {/* 选择框列 */}
       <td className="p-2 border border-[#F2ECE5] text-center w-[40px]">
-        <button
-          onClick={() => onDeleteRow(rowIndex)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center mx-auto"
-          title="删除此行"
-        >
-          <Trash2 size={14} />
-        </button>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelection(rowIndex)}
+          className="w-4 h-4 cursor-pointer accent-[#8B6F47]"
+        />
       </td>
 
       {/* 道具icon */}
