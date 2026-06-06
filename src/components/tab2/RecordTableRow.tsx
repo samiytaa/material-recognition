@@ -1,44 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Undo2, ZoomIn, X, Trash2 } from 'lucide-react';
-import { RecordRow } from '../../types';
-import categoryConfig from '../../categoryConfig.json';
-
-// 从分类名提取一级分类
-function getPrimaryCategory(categoryName: string): string {
-  const config = categoryConfig as any;
-  const nonFurniture = config['除家具以外的道具'];
-  
-  if (nonFurniture) {
-    // 遍历一级分类（男主类、密探类、头像类、活动类、其他类）
-    for (const [primaryCat, items] of Object.entries(nonFurniture)) {
-      if (Array.isArray(items) && items.includes(categoryName)) {
-        return primaryCat;
-      }
-    }
-  }
-  
-  // 家具类统一返回"家具"
-  const furniture = config['家具'];
-  if (furniture) {
-    // 检查套装
-    if (Array.isArray(furniture['套装']) && furniture['套装'].includes(categoryName)) {
-      return '家具';
-    }
-    // 检查自由装修
-    const free = furniture['自由装修'];
-    if (free) {
-      if (categoryName === '衬景') return '家具';
-      for (const [subCat, items] of Object.entries(free)) {
-        if (Array.isArray(items) && items.includes(categoryName)) {
-          return '家具';
-        }
-      }
-    }
-  }
-  
-  // 兜底返回原分类名
-  return categoryName;
-}
+import { Bot, CheckCircle, RotateCcw, ZoomIn, X, Trash2 } from 'lucide-react';
+import { RecordRow, ScreenshotPrimaryCategory } from '../../types';
+import { SCREENSHOT_CATEGORY_OPTIONS, getIconPrimaryCategory } from '../../utils/tab2Helper';
+import { MapGroup } from '../../hooks';
 
 interface RecordTableRowProps {
   row: RecordRow;
@@ -52,20 +16,10 @@ interface RecordTableRowProps {
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
-  onReturnScreenshot?: (rowId: number) => void;
+  iconStatus: 'none' | 'ai' | 'confirmed';
+  onConfirmIcon: (rowId: number) => void;
+  onReturnIcon: (rowId: number) => void;
   onDeleteScreenshot?: (rowId: number) => void;
-}
-
-interface BasemapItem {
-  id: string;
-  image: string;
-  color: string;
-}
-
-interface MapGroup {
-  id: string;
-  name: string;
-  thumbnails: BasemapItem[];
 }
 
 // 放大预览弹窗组件
@@ -116,7 +70,9 @@ export default function RecordTableRow({
   onViewImage,
   onUploadImage,
   onUpdateRow,
-  onReturnScreenshot,
+  iconStatus,
+  onConfirmIcon,
+  onReturnIcon,
   onDeleteScreenshot,
 }: RecordTableRowProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -223,6 +179,60 @@ export default function RecordTableRow({
           />
         </td>
 
+        {/* 游戏截图 */}
+        <td className="p-2 border border-[#F2ECE5] text-center">
+          <div 
+            className={`thumbnail-cell relative w-full h-16 rounded-lg border flex items-center justify-center transition-all ${
+              row.screenshot 
+              ? 'border-gold-shiny/50 bg-transparent group/screenshot' 
+              : 'border-dashed border-gold-medium/60 bg-[#FAF7F2] hover:bg-[#F2ECE4] cursor-pointer'
+            }`}
+            style={row.screenshot ? {
+              backgroundImage: `url(${row.screenshot})`,
+              backgroundSize: 'contain',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            } : undefined}
+            onClick={() => {
+              if (!row.screenshot) {
+                onUploadImage(rowIndex, 'screenshot');
+              }
+            }}
+          >
+            {!row.screenshot && (
+              <span className="text-[10px] font-bold text-gold-deep/60 tracking-wider">上传截图</span>
+            )}
+            
+            {row.screenshot && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setZoomImage({ url: row.screenshot!, name: `${row.propName || '未命名'} - 游戏截图` });
+                  }}
+                  className="absolute top-1 right-1 w-6 h-6 bg-blue-500/90 hover:bg-blue-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
+                  title="放大查看"
+                >
+                  <ZoomIn size={12} />
+                </button>
+                
+                {onDeleteScreenshot && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteScreenshot(rowIndex);
+                    }}
+                    className="absolute bottom-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
+                    title="删除截图"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </td>
+
         {/* 道具icon */}
         <td className="p-2 border border-[#F2ECE5] text-center">
           <div 
@@ -262,78 +272,6 @@ export default function RecordTableRow({
           </div>
         </td>
 
-        {/* 游戏截图 */}
-        <td className="p-2 border border-[#F2ECE5] text-center">
-          <div 
-            className={`thumbnail-cell relative w-full h-16 rounded-lg border flex items-center justify-center transition-all ${
-              row.screenshot 
-              ? 'border-gold-shiny/50 bg-transparent group/screenshot' 
-              : 'border-dashed border-gold-medium/60 bg-[#FAF7F2] hover:bg-[#F2ECE4] cursor-pointer'
-            }`}
-            style={row.screenshot ? {
-              backgroundImage: `url(${row.screenshot})`,
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
-            } : undefined}
-            onClick={() => {
-              if (!row.screenshot) {
-                onUploadImage(rowIndex, 'screenshot');
-              }
-            }}
-          >
-            {!row.screenshot && (
-              <span className="text-[10px] font-bold text-gold-deep/60 tracking-wider">上传截图</span>
-            )}
-            
-            {row.screenshot && (
-              <>
-                {/* 放大按钮 */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setZoomImage({ url: row.screenshot!, name: `${row.propName || '未命名'} - 游戏截图` });
-                  }}
-                  className="absolute top-1 right-1 w-6 h-6 bg-blue-500/90 hover:bg-blue-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
-                  title="放大查看"
-                >
-                  <ZoomIn size={12} />
-                </button>
-                
-                {/* 退回按钮 */}
-                {onReturnScreenshot && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm('确定要将此截图退回到待处理列表吗？')) {
-                        onReturnScreenshot(rowIndex);
-                      }
-                    }}
-                    className="absolute top-1 left-1 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
-                    title="退回到截图列表"
-                  >
-                    <Undo2 size={12} />
-                  </button>
-                )}
-                
-                {/* 删除截图按钮 */}
-                {onDeleteScreenshot && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteScreenshot(rowIndex);
-                    }}
-                    className="absolute bottom-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
-                    title="删除截图"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </td>
-
         {/* 道具名 */}
         <td className="p-2 border border-[#F2ECE5]">
           <input
@@ -369,10 +307,75 @@ export default function RecordTableRow({
           </select>
         </td>
 
-        {/* 分类（从Tab1同步，不可修改，只显示一级分类） */}
+        {/* 分类：待识别截图可选一级分类，识别后显示Tab1同步分类 */}
         <td className="p-2 border border-[#F2ECE5]">
-          <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
-            {getPrimaryCategory(row.propCategory || '未知')}
+          {!row.originalImage && row.screenshot ? (
+            <select
+              value={row.screenshotCategory || '其他'}
+              onChange={(e) => {
+                onUpdateRow(rowIndex, {
+                  screenshotCategory: e.target.value as ScreenshotPrimaryCategory
+                });
+              }}
+              className="w-full text-center text-xs px-1 py-1.5 bg-white border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
+              title="选择截图一级分类，AI识别时只在该分类Icon池中匹配"
+            >
+              {SCREENSHOT_CATEGORY_OPTIONS.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
+              {getIconPrimaryCategory(row.propCategory || row.screenshotCategory || '其他', row.propType)}
+            </div>
+          )}
+        </td>
+
+        {/* 确认状态 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <div className="flex flex-col items-center justify-center gap-1.5">
+            {iconStatus === 'confirmed' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                <CheckCircle size={11} />
+                已确认
+              </span>
+            ) : iconStatus === 'ai' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200">
+                <Bot size={11} />
+                AI匹配
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-[#C5B198]">未匹配</span>
+            )}
+
+            {iconStatus === 'ai' && (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => onConfirmIcon(rowIndex)}
+                  className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white transition hover:bg-emerald-700"
+                  title="确认此行icon"
+                >
+                  <CheckCircle size={12} />
+                </button>
+                <button
+                  onClick={() => onReturnIcon(rowIndex)}
+                  className="inline-flex h-6 w-6 items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600"
+                  title="退回此行icon并重新识别"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </div>
+            )}
+
+            {iconStatus === 'confirmed' && (
+              <button
+                onClick={() => onReturnIcon(rowIndex)}
+                className="inline-flex h-6 w-6 items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600"
+                title="退回此行icon"
+              >
+                <RotateCcw size={12} />
+              </button>
+            )}
           </div>
         </td>
 

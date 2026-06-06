@@ -87,6 +87,7 @@ export interface PropItem {
   image: string | null;
   classification: Classification;
   ownership: OwnershipInfo;
+  tags?: Array<'AI匹配' | '已确认'>;
   
   // 为了兼容旧代码，保留这些字段
   type: 'furniture' | 'other';
@@ -97,12 +98,16 @@ export interface PropItem {
   isFloor: boolean;
 }
 
+export type ScreenshotPrimaryCategory = '家具' | '男主' | '密探' | '头像' | '活动' | '其他';
+
 export interface RecordRow {
   id: number;
   originalImage: string | null;
   originalImageFileName?: string; // 保存原始icon文件名（用于AI识别）
   screenshot: string | null;
   screenshotOriginalName?: string; // 保存原始截图文件名
+  screenshotCategory?: ScreenshotPrimaryCategory; // 截图一级分类，用于限定AI匹配候选池
+  matchedPropFileName?: string; // AI匹配命中的Tab1 icon文件名
   propName: string;
   baseColor: string;
   // 新增三列：类型、分类、相关（从Tab1数据同步，前端不可修改）

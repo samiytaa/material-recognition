@@ -10,15 +10,7 @@ export interface CategoryNode {
  */
 export function buildCategoryTree(config: any): CategoryNode[] {
   const tree: CategoryNode[] = [];
-  
-  // "除家具以外的道具" 下的各一级分类
-  const nonFurniture = config['除家具以外的道具'] || {};
-  for (const [l1, children] of Object.entries(nonFurniture)) {
-    if (Array.isArray(children)) {
-      tree.push({ level1: l1, level2: children as string[] });
-    }
-  }
-  
+
   // "家具" 单独处理：把 套装/自由装修 的所有叶子铺开成二级
   const furniture = config['家具'] || {};
   const furnitureL2: string[] = [];
@@ -36,7 +28,23 @@ export function buildCategoryTree(config: any): CategoryNode[] {
     }
   }
   tree.push({ level1: '家具', level2: furnitureL2 });
-  
+
+  // "除家具以外的道具" 下的各一级分类
+  const nonFurniture = config['除家具以外的道具'] || {};
+  const orderedNonFurniture = ['男主类', '密探类', '头像类', '活动类', '其他类'];
+  for (const l1 of orderedNonFurniture) {
+    const children = nonFurniture[l1];
+    if (Array.isArray(children)) {
+      tree.push({ level1: l1, level2: children as string[] });
+    }
+  }
+
+  for (const [l1, children] of Object.entries(nonFurniture)) {
+    if (!orderedNonFurniture.includes(l1) && Array.isArray(children)) {
+      tree.push({ level1: l1, level2: children as string[] });
+    }
+  }
+
   return tree;
 }
 

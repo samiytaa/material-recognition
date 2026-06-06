@@ -160,6 +160,7 @@ export default function App() {
             image: prop.image,
             classification,
             ownership,
+            tags: Array.isArray(prop.tags) ? prop.tags : [],
             // 兼容字段
             type: prop.type || 'other',
             category: prop.category || '其他',
@@ -460,28 +461,6 @@ export default function App() {
                   addLog={addLog}
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
-                  onImportToTab2={(images) => {
-                    // 将图片导入到 Tab2 的道具icon列，直接创建新条目（含类型、分类、相关信息）
-                    setRecordList(prev => {
-                      const newRows = images.map((img, index) => ({
-                        id: prev.length + index,
-                        originalImage: img.image,
-                        originalImageFileName: img.fileName, // 保存原始文件名（用于AI识别）
-                        screenshot: null,
-                        propName: img.name,
-                        baseColor: '金',
-                        propType: img.propType, // 类型（家具/其他道具）
-                        propCategory: img.propCategory, // 分类（从Tab1同步）
-                        propRelated: img.propRelated, // 相关角色（男主-XXX / 密探-XXX / 无）
-                        previewWithBase: null,
-                        outputName: img.name
-                      }));
-                      return [...prev, ...newRows];
-                    });
-                    // 切换到 Tab2
-                    setActiveTab('tab2');
-                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片，创建了 ${images.length} 个新条目（含类型、分类、相关信息）`);
-                  }}
                 />
               </motion.div>
             ) : activeTab === 'tab2' ? (
@@ -496,6 +475,8 @@ export default function App() {
                 <Tab2Record
                   recordList={recordList}
                   setRecordList={setRecordList}
+                  propsList={propsList}
+                  setPropsList={setPropsList}
                   recordLogs={recordLogs}
                   addRecordLog={addRecordLog}
                   clearRecordLogs={clearRecordLogs}

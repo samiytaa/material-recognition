@@ -22,6 +22,8 @@ export default function CategoryFilter({
   expandedL1,
   onExpand,
 }: CategoryFilterProps) {
+  const getLevel1Label = (level1: string) => level1.endsWith('类') ? level1.slice(0, -1) : level1;
+
   return (
     <div className="flex flex-col gap-1.5 flex-1 min-w-0">
       {/* 一级分类行 */}
@@ -62,7 +64,7 @@ export default function CategoryFilter({
                   : 'bg-[#F2ECE4] text-[#674b2d] hover:bg-[#EADBCC]'
               }`}
             >
-              {node.level1}
+              {getLevel1Label(node.level1)}
               <ChevronDown
                 size={11}
                 className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}

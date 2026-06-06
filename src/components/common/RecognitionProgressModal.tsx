@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface RecognitionProgressModalProps {
   isOpen: boolean;
@@ -21,9 +21,20 @@ export default function RecognitionProgressModal({
   logs = [],
   title = '正在识别中...'
 }: RecognitionProgressModalProps) {
-  if (!isOpen) return null;
+  const logContentRef = useRef<HTMLDivElement>(null);
 
   const progress = total > 0 ? (current / total) * 100 : 0;
+
+  useEffect(() => {
+    if (!isOpen || logs.length === 0) return;
+
+    const logContent = logContentRef.current;
+    if (!logContent) return;
+
+    logContent.scrollTop = logContent.scrollHeight;
+  }, [isOpen, logs.length]);
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -72,14 +83,14 @@ export default function RecognitionProgressModal({
           {/* 日志输出区域 */}
           {logs.length > 0 && (
             <div className="flex-1 min-h-0 mb-4">
-              <div className="text-xs text-[#8B6F47] mb-2">识别日志：</div>
-              <div className="bg-[#F8FAFC] rounded-lg p-3 border border-[#E9DFD0] h-48 overflow-y-auto">
+              <div className="text-xs text-[#8B6F47] mb-2">日志：</div>
+              <div
+                ref={logContentRef}
+                className="bg-[#1E293B] text-[#E2E8F0] rounded-xl p-4 font-mono text-[10px] h-48 overflow-y-auto whitespace-pre-wrap break-words"
+              >
                 <div className="space-y-1">
                   {logs.map((log, index) => (
-                    <div 
-                      key={index} 
-                      className="text-xs font-mono text-[#674b2d] leading-relaxed"
-                    >
+                    <div key={index}>
                       {log}
                     </div>
                   ))}

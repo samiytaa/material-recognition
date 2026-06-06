@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Sparkles } from 'lucide-react';
 import { useBasemapGroups, type MapGroup, type BasemapItem } from '../hooks';
+import { clearTab2Screenshots } from '../utils/tab2ScreenshotStorage';
 
 interface CategoryRow {
   id: string;
@@ -61,7 +62,7 @@ export default function Tab3Settings() {
   };
 
   // 清理 localStorage
-  const handleClearStorage = () => {
+  const handleClearStorage = async () => {
     if (!confirm('确定要清理所有缓存数据吗？\n\n这将清除：\n- Tab1导入的道具列表\n- Tab2的记录列表和上传的截图\n- Tab5的上传文件\n\n注意：底图配置不会被清除')) {
       return;
     }
@@ -72,7 +73,9 @@ export default function Tab3Settings() {
       
       // 清除 Tab2 数据
       localStorage.removeItem('tab2_recordList');
+      localStorage.removeItem('tab2_recordList_compressed');
       localStorage.removeItem('tab2_uploadedScreenshots');
+      await clearTab2Screenshots();
       
       // 清除 Tab5 数据
       localStorage.removeItem('tab5_screenshot');

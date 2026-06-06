@@ -1,6 +1,7 @@
 import React from 'react';
-import { FileImage, Trash2 } from 'lucide-react';
+import { FileImage } from 'lucide-react';
 import { RecordRow } from '../../types';
+import { MapGroup } from '../../hooks';
 import RecordTableRow from './RecordTableRow';
 
 interface RecordTableProps {
@@ -15,22 +16,10 @@ interface RecordTableProps {
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
-  onReturnScreenshot?: (rowId: number) => void;
+  getIconStatus: (row: RecordRow) => 'none' | 'ai' | 'confirmed';
+  onConfirmIcon: (rowId: number) => void;
+  onReturnIcon: (rowId: number) => void;
   onDeleteScreenshot?: (rowId: number) => void;
-  onDeleteSelectedRows?: () => void;
-  onDeleteSelectedScreenshots?: () => void;
-}
-
-interface BasemapItem {
-  id: string;
-  image: string;
-  color: string;
-}
-
-interface MapGroup {
-  id: string;
-  name: string;
-  thumbnails: BasemapItem[];
 }
 
 export default function RecordTable({
@@ -45,10 +34,10 @@ export default function RecordTable({
   onViewImage,
   onUploadImage,
   onUpdateRow,
-  onReturnScreenshot,
+  getIconStatus,
+  onConfirmIcon,
+  onReturnIcon,
   onDeleteScreenshot,
-  onDeleteSelectedRows,
-  onDeleteSelectedScreenshots,
 }: RecordTableProps) {
   if (records.length === 0) {
     return (
@@ -80,34 +69,10 @@ export default function RecordTable({
             />
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            <div className="flex flex-col items-center gap-1.5">
-              <span>道具icon</span>
-              {selectedRowIds.length > 0 && onDeleteSelectedRows && (
-                <button
-                  onClick={onDeleteSelectedRows}
-                  className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white font-semibold text-[10px] rounded transition-colors flex items-center gap-1 shadow-sm"
-                  title={`删除选中的 ${selectedRowIds.length} 行`}
-                >
-                  <Trash2 size={12} />
-                  删行({selectedRowIds.length})
-                </button>
-              )}
-            </div>
+            游戏截图
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            <div className="flex flex-col items-center gap-1.5">
-              <span>游戏截图</span>
-              {selectedRowIds.length > 0 && onDeleteSelectedScreenshots && (
-                <button
-                  onClick={onDeleteSelectedScreenshots}
-                  className="px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-[10px] rounded transition-colors flex items-center gap-1 shadow-sm"
-                  title={`删除选中行的游戏截图 (${selectedRowIds.length} 行)`}
-                >
-                  <Trash2 size={12} />
-                  删截图({selectedRowIds.length})
-                </button>
-              )}
-            </div>
+            道具icon
           </th>
           <th className="w-[140px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             道具名
@@ -117,6 +82,9 @@ export default function RecordTable({
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             分类
+          </th>
+          <th className="w-[120px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
+            确认状态
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             加底预览
@@ -141,7 +109,9 @@ export default function RecordTable({
             onViewImage={onViewImage}
             onUploadImage={onUploadImage}
             onUpdateRow={onUpdateRow}
-            onReturnScreenshot={onReturnScreenshot}
+            iconStatus={getIconStatus(row)}
+            onConfirmIcon={onConfirmIcon}
+            onReturnIcon={onReturnIcon}
             onDeleteScreenshot={onDeleteScreenshot}
           />
         ))}

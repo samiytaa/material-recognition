@@ -1,9 +1,56 @@
 import { RecordRow } from '../types';
-import { Screenshot } from '../hooks';
+import categoryConfig from '../categoryConfig.json';
+import type { ScreenshotPrimaryCategory } from '../types';
 
 /**
  * AI识别相关辅助函数
  */
+
+export const SCREENSHOT_CATEGORY_OPTIONS: ScreenshotPrimaryCategory[] = ['家具', '男主', '密探', '头像', '活动', '其他'];
+
+const PRIMARY_CATEGORY_LABEL_MAP: Record<string, ScreenshotPrimaryCategory> = {
+  '男主类': '男主',
+  '密探类': '密探',
+  '头像类': '头像',
+  '活动类': '活动',
+  '其他类': '其他',
+  '家具': '家具'
+};
+
+// 从Tab1解析出的细分类映射到截图上传时只需要判断的一级分类。
+export function getIconPrimaryCategory(categoryName: string, propType?: string): ScreenshotPrimaryCategory {
+  if (propType === 'furniture' || propType === '家具') return '家具';
+
+  const config = categoryConfig as any;
+  const nonFurniture = config['除家具以外的道具'];
+
+  if (nonFurniture) {
+    for (const [primaryCat, items] of Object.entries(nonFurniture)) {
+      if (Array.isArray(items) && items.includes(categoryName)) {
+        return PRIMARY_CATEGORY_LABEL_MAP[primaryCat] || '其他';
+      }
+    }
+  }
+
+  const furniture = config['家具'];
+  if (furniture) {
+    if (Array.isArray(furniture['套装']) && furniture['套装'].includes(categoryName)) {
+      return '家具';
+    }
+
+    const free = furniture['自由装修'];
+    if (free) {
+      if (categoryName === '衬景') return '家具';
+      for (const items of Object.values(free)) {
+        if (Array.isArray(items) && items.includes(categoryName)) {
+          return '家具';
+        }
+      }
+    }
+  }
+
+  return '其他';
+}
 
 // 构建icon库
 export function buildIconLibrary(recordList: RecordRow[]) {

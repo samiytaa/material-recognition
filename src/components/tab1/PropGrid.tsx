@@ -1,4 +1,5 @@
 import React from 'react';
+import { Bot, CheckCircle } from 'lucide-react';
 import { PropItem } from '../../types';
 import ImageThumbnail from '../common/ImageThumbnail';
 
@@ -51,6 +52,22 @@ export default function PropGrid({
               index={displayIdx}
               isSelected={isSelected}
             />
+            {prop.tags && prop.tags.length > 0 && (
+              <div className="absolute left-1.5 top-1.5 flex flex-col gap-1 pointer-events-none">
+                {prop.tags.includes('AI匹配') && (
+                  <span className="inline-flex items-center gap-1 rounded bg-indigo-600/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+                    <Bot size={10} />
+                    AI匹配
+                  </span>
+                )}
+                {prop.tags.includes('已确认') && (
+                  <span className="inline-flex items-center gap-1 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+                    <CheckCircle size={10} />
+                    已确认
+                  </span>
+                )}
+              </div>
+            )}
             {/* 名称 */}
             <div className="mt-2 text-center w-full px-1">
               <div className="text-[11px] font-bold text-[#674b2d] truncate group-hover:text-gold-deep transition-colors">

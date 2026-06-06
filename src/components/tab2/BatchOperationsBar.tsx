@@ -1,4 +1,5 @@
 import React from 'react';
+import { CheckCircle, RotateCcw, Trash2 } from 'lucide-react';
 
 interface BatchOperationsBarProps {
   selectedCount: number;
@@ -7,8 +8,9 @@ interface BatchOperationsBarProps {
   matchedCount: number;
   unMatchedCount: number;
   onScreenshotFilterChange: (filter: 'all' | 'matched' | 'unmatched') => void;
-  onDeleteSelectedRows: () => void;
-  onDeleteSelectedScreenshots: () => void;
+  onDeleteSelected?: () => void;
+  onReturnSelected?: () => void;
+  onConfirmSelected?: () => void;
 }
 
 export default function BatchOperationsBar({
@@ -18,9 +20,12 @@ export default function BatchOperationsBar({
   matchedCount,
   unMatchedCount,
   onScreenshotFilterChange,
-  onDeleteSelectedRows,
-  onDeleteSelectedScreenshots
+  onDeleteSelected,
+  onReturnSelected,
+  onConfirmSelected
 }: BatchOperationsBarProps) {
+  const hasSelection = selectedCount > 0;
+
   return (
     <div className="mb-3 flex items-center gap-3 flex-wrap">
       {/* 截图筛选器 */}
@@ -62,24 +67,42 @@ export default function BatchOperationsBar({
         </div>
       </div>
 
-      {/* 批量操作按钮（选中行时显示） */}
-      {selectedCount > 0 && (
-        <div className="flex items-center gap-2 ml-auto">
+      {/* 多选状态提示 */}
+      {hasSelection && (
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
           <span className="text-xs text-[#8B6F47] font-medium">
             已选中 {selectedCount} 行
           </span>
-          <button
-            onClick={onDeleteSelectedRows}
-            className="px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
-          >
-            删除选中行
-          </button>
-          <button
-            onClick={onDeleteSelectedScreenshots}
-            className="px-3 py-1 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-md transition-colors"
-          >
-            删除选中截图
-          </button>
+          {onConfirmSelected && (
+            <button
+              onClick={onConfirmSelected}
+              className="inline-flex h-7 items-center gap-1 rounded bg-emerald-600 px-2.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+              title="确认选中条目"
+            >
+              <CheckCircle size={13} />
+              确认
+            </button>
+          )}
+          {onReturnSelected && (
+            <button
+              onClick={onReturnSelected}
+              className="inline-flex h-7 items-center gap-1 rounded bg-amber-500 px-2.5 text-xs font-bold text-white transition hover:bg-amber-600"
+              title="退回选中条目"
+            >
+              <RotateCcw size={13} />
+              退回
+            </button>
+          )}
+          {onDeleteSelected && (
+            <button
+              onClick={onDeleteSelected}
+              className="inline-flex h-7 items-center gap-1 rounded bg-red-600 px-2.5 text-xs font-bold text-white transition hover:bg-red-700"
+              title="删除选中条目"
+            >
+              <Trash2 size={13} />
+              删除
+            </button>
+          )}
         </div>
       )}
     </div>

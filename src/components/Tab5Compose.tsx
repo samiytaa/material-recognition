@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { runDirectVisionMatching } from '../utils/visionApiHelper';
 import { useBasemapGroups, useIconLibrary } from '../hooks';
 import {
@@ -17,10 +17,10 @@ export default function Tab5Compose() {
     '[说明] 一键识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
   ]);
 
-  const addLog = (message: string) => {
+  const addLog = useCallback((message: string) => {
     const time = new Date().toLocaleTimeString('zh-CN');
     setLogs(prev => [...prev, `[${time}] ${message}`]);
-  };
+  }, []);
 
   // 截图状态
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);

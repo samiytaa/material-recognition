@@ -1,11 +1,16 @@
 import React from 'react';
+import { Bot, CheckCircle, RotateCcw } from 'lucide-react';
 import { PropItem } from '../../types';
+import Button from '../common/Button';
 
 interface PreviewPanelProps {
   prop: PropItem | null;
+  onConfirmAiMatch?: () => void;
+  onReturnAiMatch?: () => void;
+  onCancelConfirm?: () => void;
 }
 
-export default function PreviewPanel({ prop }: PreviewPanelProps) {
+export default function PreviewPanel({ prop, onConfirmAiMatch, onReturnAiMatch, onCancelConfirm }: PreviewPanelProps) {
   if (!prop || !prop.image) {
     return (
       <div className="bg-white/80 rounded-xl p-3 border border-[#ECDDB9] shadow-sm flex items-center justify-center min-h-[180px]">
@@ -13,6 +18,10 @@ export default function PreviewPanel({ prop }: PreviewPanelProps) {
       </div>
     );
   }
+
+  const tags = prop.tags || [];
+  const hasAiMatch = tags.includes('AI匹配');
+  const isConfirmed = tags.includes('已确认');
 
   return (
     <>
@@ -33,6 +42,42 @@ export default function PreviewPanel({ prop }: PreviewPanelProps) {
             {prop.displayName}
           </span>
         </div>
+
+        {tags.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5">
+            {hasAiMatch && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                <Bot size={12} />
+                AI匹配
+              </span>
+            )}
+            {isConfirmed && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                <CheckCircle size={12} />
+                已确认
+              </span>
+            )}
+          </div>
+        )}
+
+        {hasAiMatch && !isConfirmed && (
+          <div className="mb-3 flex justify-center gap-2">
+            <Button size="sm" variant="success" icon={CheckCircle} onClick={onConfirmAiMatch}>
+              确认
+            </Button>
+            <Button size="sm" variant="warning" icon={RotateCcw} onClick={onReturnAiMatch}>
+              退回
+            </Button>
+          </div>
+        )}
+
+        {isConfirmed && (
+          <div className="mb-3 flex justify-center gap-2">
+            <Button size="sm" variant="secondary" icon={RotateCcw} onClick={onCancelConfirm}>
+              取消确认
+            </Button>
+          </div>
+        )}
 
         {/* 原文件名 */}
         <div className="flex items-center justify-center gap-1 mb-1.5">
