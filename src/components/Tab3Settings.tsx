@@ -35,6 +35,51 @@ const DEFAULT_BASEMAP_GROUPS: MapGroup[] = [
 ];
 
 export default function Tab3Settings() {
+  // 在组件加载时立即执行 localStorage 清理和迁移
+  useEffect(() => {
+    // 强制迁移旧的底图配置
+    const saved = localStorage.getItem('tab3_groups');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        let needsUpdate = false;
+        
+        const migrated = parsed.map((group: MapGroup) => {
+          const newThumbnails = group.thumbnails.map((item: BasemapItem) => {
+            let newImage = item.image;
+            // 检查是否包含中文路径
+            if (item.image.includes('道具-')) {
+              needsUpdate = true;
+              if (item.image.includes('道具-金.png')) {
+                newImage = '/basemaps/prop-gold.png';
+              } else if (item.image.includes('道具-紫.png')) {
+                newImage = '/basemaps/prop-purple.png';
+              } else if (item.image.includes('道具-蓝.png')) {
+                newImage = '/basemaps/prop-blue.png';
+              } else if (item.image.includes('道具-绿.png')) {
+                newImage = '/basemaps/prop-green.png';
+              } else if (item.image.includes('道具-咖.png')) {
+                newImage = '/basemaps/prop-brown.png';
+              }
+            }
+            return { ...item, image: newImage };
+          });
+          return { ...group, thumbnails: newThumbnails };
+        });
+        
+        // 如果检测到旧路径，立即更新 localStorage
+        if (needsUpdate) {
+          localStorage.setItem('tab3_groups', JSON.stringify(migrated));
+          console.log('✓ 已自动迁移底图路径');
+          // 强制重新加载页面以应用新配置
+          window.location.reload();
+        }
+      } catch (e) {
+        console.error('迁移底图配置失败:', e);
+      }
+    }
+  }, []); // 只在组件首次加载时执行一次
+
   // --- STATE FOR SECTION 1: MAP GROUPS ---
   const [groups, setGroups] = useState<MapGroup[]>(() => {
     const saved = localStorage.getItem('tab3_groups');
