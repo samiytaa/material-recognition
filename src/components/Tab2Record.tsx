@@ -129,6 +129,12 @@ export default function Tab2Record({
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [availableColors, setAvailableColors] = useState<string[]>(['金', '紫', '蓝', '绿', '咖']);
   
+  // 加底逻辑：Contain 等比缩放模式（与Tab5一致）
+  const [enableContainScale, setEnableContainScale] = useState<boolean>(() => {
+    const saved = localStorage.getItem('tab2_enableContainScale');
+    return saved !== null ? saved === 'true' : true; // 默认启用
+  });
+  
   // 从localStorage加载底图组配置
   useEffect(() => {
     const loadBasemapGroups = () => {
@@ -858,13 +864,40 @@ export default function Tab2Record({
         
         const propImg = new Image();
         propImg.onload = () => {
-          const scale = Math.min(canvas.width / propImg.width, canvas.height / propImg.height) * 0.8;
-          const scaledWidth = propImg.width * scale;
-          const scaledHeight = propImg.height * scale;
-          const x = (canvas.width - scaledWidth) / 2;
-          const y = (canvas.height - scaledHeight) / 2;
-          
-          ctx!.drawImage(propImg, x, y, scaledWidth, scaledHeight);
+          if (enableContainScale) {
+            // Contain 等比缩放模式：画布边界等比适配居中算法
+            const targetWidth = canvas.width;
+            const targetHeight = canvas.height;
+            const sourceWidth = propImg.width;
+            const sourceHeight = propImg.height;
+            
+            // 计算缩放系数：min(目标宽/源宽, 目标高/源高)
+            const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+            
+            // 缩放后的尺寸
+            const scaledWidth = sourceWidth * scale;
+            const scaledHeight = sourceHeight * scale;
+            
+            // 中心锚点居中定位
+            const offsetX = (targetWidth - scaledWidth) / 2;
+            const offsetY = (targetHeight - scaledHeight) / 2;
+            
+            // 绘制等比缩放后居中的 icon
+            ctx!.drawImage(propImg, offsetX, offsetY, scaledWidth, scaledHeight);
+          } else {
+            // 禁用缩放模式：原图原始尺寸居中渲染，超出画布区域裁切
+            const targetWidth = canvas.width;
+            const targetHeight = canvas.height;
+            const sourceWidth = propImg.width;
+            const sourceHeight = propImg.height;
+            
+            // 中心锚点居中定位
+            const offsetX = (targetWidth - sourceWidth) / 2;
+            const offsetY = (targetHeight - sourceHeight) / 2;
+            
+            // 直接绘制原尺寸 icon（Canvas 会自动裁切超出部分）
+            ctx!.drawImage(propImg, offsetX, offsetY, sourceWidth, sourceHeight);
+          }
           
           const compositeDataUrl = canvas.toDataURL('image/png');
           
@@ -879,7 +912,8 @@ export default function Tab2Record({
 
           processedCount++;
           updateProgress(processedCount, readyRowsCount);
-          addRecordLog(`[${processedCount}/${readyRowsCount}] 第 ${activeIdx + 1} 行加底完成（${currentRow.baseColor}）`);
+          const scaleMode = enableContainScale ? 'Contain等比' : '原始尺寸';
+          addRecordLog(`[${processedCount}/${readyRowsCount}] 第 ${activeIdx + 1} 行加底完成（${currentRow.baseColor}/${scaleMode}）`);
 
           setTimeout(processNextBase, intervalTime);
         };
@@ -1148,6 +1182,26 @@ export default function Tab2Record({
 
         {/* Locked bottom action buttons */}
         <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent flex-shrink-0">
+          {/* 等比缩放开关 */}
+          <div className="mb-2 flex items-center justify-center">
+            <label className="flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-lg hover:bg-[#FAF8F4] transition-colors">
+              <input
+                type="checkbox"
+                checked={enableContainScale}
+                onChange={(e) => {
+                  const newValue = e.target.checked;
+                  setEnableContainScale(newValue);
+                  localStorage.setItem('tab2_enableContainScale', newValue.toString());
+                  addRecordLog(`[设置] ${newValue ? '启用' : '禁用'} Contain 等比缩放模式`);
+                }}
+                className="w-3.5 h-3.5 rounded border-[#8B6F47] text-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] cursor-pointer"
+              />
+              <span className="text-[10px] text-[#674b2d] font-bold whitespace-nowrap group-hover:text-[#8B6F47] transition-colors">
+                加底等比缩放
+              </span>
+            </label>
+          </div>
+          
           <div className="flex gap-2">
             <button
               onClick={runAiMatch}
@@ -1161,6 +1215,19 @@ export default function Tab2Record({
             >
               <Sparkles size={16} />
               一键识别
+            </button>
+            <button
+              onClick={addWatermarkBase}
+              disabled={recordList.filter(row => row.originalImage && row.propName).length === 0 || !selectedGroupId}
+              id="addBaseButton"
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold tracking-widest uppercase shadow transition-all duration-200 cursor-pointer text-center flex items-center justify-center gap-2 ${
+                recordList.filter(row => row.originalImage && row.propName).length > 0 && selectedGroupId
+                  ? 'bg-gradient-to-r from-[#10B981] to-[#059669] hover:to-[#047857] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
+                  : 'bg-[#EDE9E3] text-[#AFA498] shadow-none cursor-not-allowed border border-[#DFD2BD]'
+              }`}
+            >
+              <Layers size={16} />
+              加底
             </button>
             <button
               onClick={exportBatchFiles}
