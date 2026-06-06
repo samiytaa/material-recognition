@@ -41,6 +41,32 @@ const DEFAULT_BASEMAP_GROUPS: MapGroup[] = [
   }
 ];
 
+const migrateBasemapImage = (image: string): string => {
+  if (image.includes('金') || image.includes('gold')) {
+    return propGold;
+  }
+  if (image.includes('紫') || image.includes('purple')) {
+    return propPurple;
+  }
+  if (image.includes('蓝') || image.includes('blue')) {
+    return propBlue;
+  }
+  if (image.includes('绿') || image.includes('green')) {
+    return propGreen;
+  }
+  if (image.includes('咖') || image.includes('brown')) {
+    return propBrown;
+  }
+  return image;
+};
+
+const isLegacyBasemapPath = (image: string): boolean => (
+  image.includes('道具-') ||
+  image.startsWith('basemaps/prop-') ||
+  image.startsWith('./basemaps/prop-') ||
+  image.startsWith('../basemaps/prop-')
+);
+
 export default function Tab3Settings() {
   // 在组件加载时立即执行 localStorage 清理和迁移
   useEffect(() => {
@@ -54,25 +80,10 @@ export default function Tab3Settings() {
         const migrated = parsed.map((group: MapGroup) => {
           const newThumbnails = group.thumbnails.map((item: BasemapItem) => {
             let newImage = item.image;
-            // 只检查旧的中文路径，不检查新的导入路径
-            // 新路径格式类似：/material-recognition/basemaps/prop-xxx.png
-            // 旧路径格式：道具-xxx.png 或 basemaps/prop-xxx.png（不带域名前缀）
-            const isOldPath = item.image.includes('道具-') || 
-                            (item.image.includes('basemaps/prop-') && !item.image.startsWith('/material-recognition/'));
-            
-            if (isOldPath) {
+
+            if (isLegacyBasemapPath(item.image)) {
               needsUpdate = true;
-              if (item.image.includes('金')) {
-                newImage = propGold;
-              } else if (item.image.includes('紫')) {
-                newImage = propPurple;
-              } else if (item.image.includes('蓝')) {
-                newImage = propBlue;
-              } else if (item.image.includes('绿')) {
-                newImage = propGreen;
-              } else if (item.image.includes('咖') || item.image.includes('brown')) {
-                newImage = propBrown;
-              }
+              newImage = migrateBasemapImage(item.image);
             }
             return { ...item, image: newImage };
           });
@@ -83,8 +94,6 @@ export default function Tab3Settings() {
         if (needsUpdate) {
           localStorage.setItem('tab3_groups', JSON.stringify(migrated));
           console.log('✓ 已自动迁移底图路径');
-          // 强制重新加载页面以应用新配置
-          window.location.reload();
         }
       } catch (e) {
         console.error('迁移底图配置失败:', e);
@@ -110,18 +119,9 @@ export default function Tab3Settings() {
             ...group,
             thumbnails: group.thumbnails.map((item: BasemapItem) => {
               // 如果是旧的中文路径或相对路径，替换为导入的变量
-              let newImage = item.image;
-              if (item.image.includes('金') || item.image.includes('gold')) {
-                newImage = propGold;
-              } else if (item.image.includes('紫') || item.image.includes('purple')) {
-                newImage = propPurple;
-              } else if (item.image.includes('蓝') || item.image.includes('blue')) {
-                newImage = propBlue;
-              } else if (item.image.includes('绿') || item.image.includes('green')) {
-                newImage = propGreen;
-              } else if (item.image.includes('咖') || item.image.includes('brown')) {
-                newImage = propBrown;
-              }
+              const newImage = isLegacyBasemapPath(item.image)
+                ? migrateBasemapImage(item.image)
+                : item.image;
               return { ...item, image: newImage };
             })
           }));
