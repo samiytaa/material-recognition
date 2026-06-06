@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Sparkles, Layers, Download, Trash2 } from 'lucide-react';
+import { Sparkles, Download, Trash2 } from 'lucide-react';
 import { RecordRow } from '../types';
 import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
@@ -73,6 +73,9 @@ export default function Tab2Record({
   // 选中行管理（使用 row.id 而不是索引）
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
   
+  // 用于 Shift 连选的锚点
+  const [lastSelectedRowId, setLastSelectedRowId] = useState<number | null>(null);
+  
   // 截图筛选状态：'all' | 'matched' | 'unmatched'
   const [screenshotFilter, setScreenshotFilter] = useState<'all' | 'matched' | 'unmatched'>('all');
   
@@ -87,13 +90,35 @@ export default function Tab2Record({
     }
   }, [recordList, screenshotFilter]);
   
-  // 切换行选择状态
-  const toggleRowSelection = (rowId: number) => {
+  // 切换行选择状态（支持 Ctrl 和 Shift 多选）
+  const toggleRowSelection = (rowId: number, event?: React.MouseEvent) => {
+    const row = filteredRecordList.find(r => r.id === rowId);
+    if (!row) return;
+    
+    // Shift 连选
+    if (event?.shiftKey && lastSelectedRowId !== null) {
+      const lastIndex = filteredRecordList.findIndex(r => r.id === lastSelectedRowId);
+      const currentIndex = filteredRecordList.findIndex(r => r.id === rowId);
+      
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const rangeIds = filteredRecordList.slice(start, end + 1).map(r => r.id);
+        
+        setSelectedRowIds(prev => [...new Set([...prev, ...rangeIds])]);
+        return;
+      }
+    }
+    
+    // Ctrl 离散多选 / 普通 toggle
     setSelectedRowIds(prev => 
       prev.includes(rowId) 
         ? prev.filter(id => id !== rowId)
         : [...prev, rowId]
     );
+    
+    // 更新锚点
+    setLastSelectedRowId(rowId);
   };
   
   // 全选/取消全选（基于过滤后的列表）
@@ -122,6 +147,40 @@ export default function Tab2Record({
     setRecordList(prev => prev.filter(row => !selectedRowIds.includes(row.id)));
     addRecordLog(`已批量删除 ${selectedRowIds.length} 行`);
     setSelectedRowIds([]);
+    setLastSelectedRowId(null);
+  };
+  
+  // 批量删除选中行的游戏截图
+  const deleteSelectedScreenshots = () => {
+    if (selectedRowIds.length === 0) return;
+    
+    const rowsWithScreenshots = recordList.filter(
+      row => selectedRowIds.includes(row.id) && row.screenshot !== null
+    );
+    
+    if (rowsWithScreenshots.length === 0) {
+      alert('选中的行中没有游戏截图');
+      return;
+    }
+    
+    if (!confirm(`确定要删除 ${rowsWithScreenshots.length} 张游戏截图吗？\n（不会删除行，只删除截图）`)) return;
+    
+    setRecordList(prev => {
+      const updated = [...prev];
+      selectedRowIds.forEach(selectedId => {
+        const idx = updated.findIndex(r => r.id === selectedId);
+        if (idx !== -1 && updated[idx].screenshot) {
+          updated[idx] = {
+            ...updated[idx],
+            screenshot: null,
+            screenshotOriginalName: undefined
+          };
+        }
+      });
+      return updated;
+    });
+    
+    addRecordLog(`已批量删除 ${rowsWithScreenshots.length} 张游戏截图`);
   };
   
   // 底图组相关状态
@@ -484,6 +543,30 @@ export default function Tab2Record({
     });
     
     addRecordLog(`✓ 已将第 ${rowId + 1} 行的截图退回到待处理列表（${screenshotName}）`);
+  };
+  
+  // 删除某行的游戏截图（不退回到待处理列表）
+  const deleteScreenshotFromRow = (rowId: number) => {
+    const row = recordList[rowId];
+    
+    if (!row.screenshot) {
+      addRecordLog(`⚠ 第 ${rowId + 1} 行没有截图可删除`);
+      return;
+    }
+    
+    if (!confirm(`确定要删除第 ${rowId + 1} 行的游戏截图吗？`)) return;
+    
+    setRecordList(prev => {
+      const updated = [...prev];
+      updated[rowId] = {
+        ...updated[rowId],
+        screenshot: null,
+        screenshotOriginalName: undefined
+      };
+      return updated;
+    });
+    
+    addRecordLog(`✓ 已删除第 ${rowId + 1} 行的游戏截图`);
   };
 
   // Clear all uploaded screenshots
@@ -1082,6 +1165,26 @@ export default function Tab2Record({
             </div>
           </div>
           
+          {/* 加底等比缩放开关 */}
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={enableContainScale}
+                onChange={(e) => {
+                  const newValue = e.target.checked;
+                  setEnableContainScale(newValue);
+                  localStorage.setItem('tab2_enableContainScale', newValue.toString());
+                  addRecordLog(`[设置] ${newValue ? '启用' : '禁用'} 加底等比缩放模式`);
+                }}
+                className="w-3.5 h-3.5 rounded border-[#8B6F47] text-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] cursor-pointer"
+              />
+              <span className="text-xs font-semibold text-[#674b2d] whitespace-nowrap group-hover:text-[#8B6F47] transition-colors">
+                加底等比缩放
+              </span>
+            </label>
+          </div>
+          
           {/* 批量删除按钮 */}
           {selectedRowIds.length > 0 && (
             <button
@@ -1182,26 +1285,6 @@ export default function Tab2Record({
 
         {/* Locked bottom action buttons */}
         <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent flex-shrink-0">
-          {/* 等比缩放开关 */}
-          <div className="mb-2 flex items-center justify-center">
-            <label className="flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-lg hover:bg-[#FAF8F4] transition-colors">
-              <input
-                type="checkbox"
-                checked={enableContainScale}
-                onChange={(e) => {
-                  const newValue = e.target.checked;
-                  setEnableContainScale(newValue);
-                  localStorage.setItem('tab2_enableContainScale', newValue.toString());
-                  addRecordLog(`[设置] ${newValue ? '启用' : '禁用'} Contain 等比缩放模式`);
-                }}
-                className="w-3.5 h-3.5 rounded border-[#8B6F47] text-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] cursor-pointer"
-              />
-              <span className="text-[10px] text-[#674b2d] font-bold whitespace-nowrap group-hover:text-[#8B6F47] transition-colors">
-                加底等比缩放
-              </span>
-            </label>
-          </div>
-          
           <div className="flex gap-2">
             <button
               onClick={runAiMatch}
@@ -1215,19 +1298,6 @@ export default function Tab2Record({
             >
               <Sparkles size={16} />
               一键识别
-            </button>
-            <button
-              onClick={addWatermarkBase}
-              disabled={recordList.filter(row => row.originalImage && row.propName).length === 0 || !selectedGroupId}
-              id="addBaseButton"
-              className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold tracking-widest uppercase shadow transition-all duration-200 cursor-pointer text-center flex items-center justify-center gap-2 ${
-                recordList.filter(row => row.originalImage && row.propName).length > 0 && selectedGroupId
-                  ? 'bg-gradient-to-r from-[#10B981] to-[#059669] hover:to-[#047857] text-white hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' 
-                  : 'bg-[#EDE9E3] text-[#AFA498] shadow-none cursor-not-allowed border border-[#DFD2BD]'
-              }`}
-            >
-              <Layers size={16} />
-              加底
             </button>
             <button
               onClick={exportBatchFiles}
