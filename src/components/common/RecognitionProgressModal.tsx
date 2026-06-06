@@ -8,6 +8,7 @@ interface RecognitionProgressModalProps {
   failCount: number;
   currentProcessing: string;
   logs?: string[];
+  title?: string;
 }
 
 export default function RecognitionProgressModal({
@@ -17,7 +18,8 @@ export default function RecognitionProgressModal({
   successCount,
   failCount,
   currentProcessing,
-  logs = []
+  logs = [],
+  title = '正在识别中...'
 }: RecognitionProgressModalProps) {
   if (!isOpen) return null;
 
@@ -30,7 +32,7 @@ export default function RecognitionProgressModal({
         {/* 进度弹窗 */}
         <div className="bg-white rounded-2xl shadow-2xl p-6 w-[640px] max-h-[80vh] flex flex-col border-2 border-[#8B6F47]">
           <h3 className="text-lg font-bold text-[#674b2d] mb-4 text-center">
-            正在识别中...
+            {title}
           </h3>
 
           {/* 进度条 */}

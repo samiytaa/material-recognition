@@ -454,11 +454,13 @@ export default function Tab5Compose() {
       canvas.height = 140;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
+        setExportProgress(prev => ({ ...prev, isOpen: false }));
         throw new Error('无法创建canvas上下文');
       }
 
       const baseMap = baseMaps.find(b => b.color === selectedBaseMapColor);
       if (!baseMap) {
+        setExportProgress(prev => ({ ...prev, isOpen: false }));
         throw new Error('未找到选中的底图');
       }
 
@@ -586,6 +588,7 @@ export default function Tab5Compose() {
         failCount={exportProgress.failCount}
         currentProcessing={exportProgress.currentProcessing}
         logs={exportProgress.logs}
+        title="正在导出中..."
       />
 
       {/* 第一行：三个卡片 - 游戏截图、Icon库、底图展示 */}
