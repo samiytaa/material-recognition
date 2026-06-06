@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, FileImage } from 'lucide-react';
+import { FileImage } from 'lucide-react';
 import { RecordRow } from '../../types';
 import RecordTableRow from './RecordTableRow';
 

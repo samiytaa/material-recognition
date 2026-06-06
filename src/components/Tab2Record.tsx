@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Sparkles, Layers, Download } from 'lucide-react';
+import { Sparkles, Layers, Download, Trash2 } from 'lucide-react';
 import { RecordRow } from '../types';
 import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
 import { UploadZone, Button, Card } from './common';
 import { readFileAsDataURL, getFileNameWithoutExtension } from '../utils/fileHelper';
+import categoryConfigModule from '../categoryConfig.json';
 
 interface BasemapItem {
   id: string;
@@ -90,8 +91,7 @@ export default function Tab2Record({
   const availableCategories = useMemo(() => {
     const categories: string[] = [];
     
-    // 从 categoryConfig.json 加载
-    const categoryConfigModule = require('../categoryConfig.json');
+    // 使用导入的 categoryConfig
     const config = categoryConfigModule;
     
     // 除家具以外的道具
