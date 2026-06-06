@@ -75,6 +75,12 @@ export default function Tab5Compose() {
   // 合成状态
   const [compositeFilename, setCompositeFilename] = useState<string>('合成图片.png');
   const [recognizedOcrName, setRecognizedOcrName] = useState<string>('');
+  
+  // 加底逻辑：Contain 等比缩放模式
+  const [enableContainScale, setEnableContainScale] = useState<boolean>(() => {
+    const saved = localStorage.getItem('tab5_enableContainScale');
+    return saved !== null ? saved === 'true' : true; // 默认启用
+  });
 
   // 批次大小控制
   const [batchSize, setBatchSize] = useState<number>(5);
@@ -365,15 +371,47 @@ export default function Tab5Compose() {
 
     const baseImg = new Image();
     baseImg.onload = () => {
+      // 绘制底图（目标画布尺寸固定为底图尺寸）
       ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
 
       const iconImg = new Image();
       iconImg.onload = () => {
-        const iconSize = canvas.width * 0.6;
-        const x = (canvas.width - iconSize) / 2;
-        const y = (canvas.height - iconSize) / 2;
-        ctx.drawImage(iconImg, x, y, iconSize, iconSize);
-        addLog('[合成] 图片合成完成');
+        if (enableContainScale) {
+          // Contain 等比缩放模式：画布边界等比适配居中算法
+          const targetWidth = canvas.width;
+          const targetHeight = canvas.height;
+          const sourceWidth = iconImg.width;
+          const sourceHeight = iconImg.height;
+          
+          // 计算缩放系数：min(目标宽/源宽, 目标高/源高)
+          const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+          
+          // 缩放后的尺寸
+          const scaledWidth = sourceWidth * scale;
+          const scaledHeight = sourceHeight * scale;
+          
+          // 中心锚点居中定位
+          const offsetX = (targetWidth - scaledWidth) / 2;
+          const offsetY = (targetHeight - scaledHeight) / 2;
+          
+          // 绘制等比缩放后居中的 icon
+          ctx.drawImage(iconImg, offsetX, offsetY, scaledWidth, scaledHeight);
+          addLog('[合成] 使用 Contain 等比缩放模式完成');
+        } else {
+          // 禁用缩放模式：原图原始尺寸居中渲染，超出画布区域裁切
+          const targetWidth = canvas.width;
+          const targetHeight = canvas.height;
+          const sourceWidth = iconImg.width;
+          const sourceHeight = iconImg.height;
+          
+          // 中心锚点居中定位
+          const offsetX = (targetWidth - sourceWidth) / 2;
+          const offsetY = (targetHeight - sourceHeight) / 2;
+          
+          // 直接绘制原尺寸 icon（Canvas 会自动裁切超出部分）
+          ctx.drawImage(iconImg, offsetX, offsetY, sourceWidth, sourceHeight);
+          addLog('[合成] 使用原始尺寸模式（超出裁切）完成');
+        }
       };
       iconImg.src = `data:image/png;base64,${icon.base64}`;
     };
@@ -656,6 +694,28 @@ export default function Tab5Compose() {
               <h3 className="font-serif font-bold text-[#8B6F47] text-sm">
                 合成图片
               </h3>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={enableContainScale}
+                    onChange={(e) => {
+                      const newValue = e.target.checked;
+                      setEnableContainScale(newValue);
+                      localStorage.setItem('tab5_enableContainScale', newValue.toString());
+                      addLog(`[设置] ${newValue ? '启用' : '禁用'} Contain 等比缩放模式`);
+                      // 如果已有合成结果，自动重新渲染
+                      if (selectedBaseMapColor && selectedIconId) {
+                        setTimeout(() => renderComposite(selectedBaseMapColor, selectedIconId), 50);
+                      }
+                    }}
+                    className="w-3.5 h-3.5 rounded border-[#8B6F47] text-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] cursor-pointer"
+                  />
+                  <span className="text-[10px] text-[#674b2d] font-bold whitespace-nowrap group-hover:text-[#8B6F47] transition-colors">
+                    等比缩放
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div className="bg-gradient-to-br from-[#F8FAFC] to-[#E2E8F0] rounded-xl p-4 flex items-center justify-center min-h-[180px] mb-3"
