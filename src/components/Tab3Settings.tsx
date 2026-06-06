@@ -54,8 +54,13 @@ export default function Tab3Settings() {
         const migrated = parsed.map((group: MapGroup) => {
           const newThumbnails = group.thumbnails.map((item: BasemapItem) => {
             let newImage = item.image;
-            // 检查是否包含中文路径或相对路径
-            if (item.image.includes('道具-') || item.image.includes('basemaps/prop-')) {
+            // 只检查旧的中文路径，不检查新的导入路径
+            // 新路径格式类似：/material-recognition/basemaps/prop-xxx.png
+            // 旧路径格式：道具-xxx.png 或 basemaps/prop-xxx.png（不带域名前缀）
+            const isOldPath = item.image.includes('道具-') || 
+                            (item.image.includes('basemaps/prop-') && !item.image.startsWith('/material-recognition/'));
+            
+            if (isOldPath) {
               needsUpdate = true;
               if (item.image.includes('金')) {
                 newImage = propGold;
