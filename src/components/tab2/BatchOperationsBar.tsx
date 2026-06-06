@@ -83,40 +83,40 @@ export default function BatchOperationsBar({
 
       {/* 浮动操作条 - 仅在有选中行时显示 */}
       {hasSelection && (
-        <div className="fixed top-[120px] left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="flex items-center gap-3 bg-white border-2 border-[#8B6F47] rounded-lg shadow-lg px-4 py-2.5">
-            <span className="text-sm text-[#674b2d] font-bold">
-              已选中 {selectedCount} 行
+        <div className="fixed top-[120px] left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3 bg-white/95 backdrop-blur-md border border-[#DFD2BD]/60 rounded-full shadow-[0_8px_32px_rgba(139,111,71,0.12)] px-5 py-2.5 transition-all hover:shadow-[0_12px_40px_rgba(139,111,71,0.18)]">
+            <span className="text-xs text-[#674b2d] font-medium">
+              已选中 <span className="font-bold text-[#8B6F47]">{selectedCount}</span> 行
             </span>
-            <div className="h-4 w-px bg-[#DFD2BD]"></div>
+            <div className="h-3.5 w-px bg-gradient-to-b from-transparent via-[#DFD2BD]/60 to-transparent"></div>
             {onConfirmSelected && (
               <button
                 onClick={onConfirmSelected}
-                className="inline-flex h-8 items-center gap-1.5 rounded bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-3.5 text-xs font-medium text-white transition-all hover:from-emerald-600 hover:to-emerald-700 hover:shadow-[0_4px_12px_rgba(16,185,129,0.3)] active:scale-95"
                 title="确认选中条目"
               >
-                <CheckCircle size={14} />
-                确认
+                <CheckCircle size={13} />
+                <span>确认</span>
               </button>
             )}
             {onReturnSelected && (
               <button
                 onClick={onReturnSelected}
-                className="inline-flex h-8 items-center gap-1.5 rounded bg-amber-500 px-3 text-xs font-bold text-white transition hover:bg-amber-600 shadow-sm"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-3.5 text-xs font-medium text-white transition-all hover:from-amber-500 hover:to-amber-600 hover:shadow-[0_4px_12px_rgba(251,191,36,0.3)] active:scale-95"
                 title="退回选中条目"
               >
-                <RotateCcw size={14} />
-                退回
+                <RotateCcw size={13} />
+                <span>退回</span>
               </button>
             )}
             {onDeleteSelected && (
               <button
                 onClick={handleDeleteClick}
-                className="inline-flex h-8 items-center gap-1.5 rounded bg-red-600 px-3 text-xs font-bold text-white transition hover:bg-red-700 shadow-sm"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-r from-red-500 to-red-600 px-3.5 text-xs font-medium text-white transition-all hover:from-red-600 hover:to-red-700 hover:shadow-[0_4px_12px_rgba(239,68,68,0.3)] active:scale-95"
                 title="删除选中条目"
               >
-                <Trash2 size={14} />
-                删除
+                <Trash2 size={13} />
+                <span>删除</span>
               </button>
             )}
           </div>

@@ -609,11 +609,10 @@ export function useTab2RecordController({
 
     const { apiEndpoint, apiKey, selectedModel } = apiValidation.config!;
 
-    // 从localStorage获取tab1的icon库
-    const savedPropsStr = localStorage.getItem('savedProps');
-    if (!savedPropsStr) {
+    // ✓ 直接使用propsList（当前React state），确保数据同步
+    if (propsList.length === 0) {
       alert('未找到icon库！\n请先在Tab1中上传icon图片。');
-      addRecordLog('[错误] 未找到tab1的icon库');
+      addRecordLog('[错误] Tab1的icon库为空');
       return;
     }
 
@@ -630,10 +629,10 @@ export function useTab2RecordController({
     }> = [];
 
     try {
-      const savedProps = JSON.parse(savedPropsStr);
-      iconLibrary = savedProps
-        .filter((prop: any) => prop.image && !(prop.tags || []).includes('已确认'))
-        .map((prop: any, index: number) => {
+      // ✓ 使用propsList而不是localStorage，确保与Tab1数据完全同步
+      iconLibrary = propsList
+        .filter((prop: PropItem) => prop.image && !(prop.tags || []).includes('已确认'))
+        .map((prop: PropItem, index: number) => {
           const rawCategory = prop.category || prop.classification?.category || '其他';
           const rawType = prop.type || prop.classification?.type || 'other';
           const propType = rawType === 'furniture' ? '家具' : '其他道具';
@@ -641,7 +640,7 @@ export function useTab2RecordController({
           return {
             id: `icon_${index}`,
             name: prop.name,
-            base64: prop.image.split(',')[1],
+            base64: prop.image!.split(',')[1],
             propName: prop.displayName,
             propCategory: rawCategory,
             propType,
@@ -654,6 +653,8 @@ export function useTab2RecordController({
             sourcePropName: prop.name
           };
         });
+      
+      addRecordLog(`[配置] 使用propsList构建icon库: 共 ${propsList.length} 个icon，过滤后 ${iconLibrary.length} 个候选`);
     } catch (error) {
       alert('读取icon库失败！\n请检查Tab1的数据是否正常。');
       addRecordLog(`[错误] 解析icon库失败: ${error}`);
