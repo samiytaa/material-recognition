@@ -9,12 +9,13 @@ interface RecordTableProps {
   basemapGroups: MapGroup[];
   selectedGroupId: string;
   selectedRowIds: number[];
-  onToggleRowSelection: (rowId: number) => void;
+  onToggleRowSelection: (rowId: number, event?: React.MouseEvent) => void;
   onToggleSelectAll: () => void;
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
   onReturnScreenshot?: (rowId: number) => void;
+  onDeleteScreenshot?: (rowId: number) => void;
 }
 
 interface BasemapItem {
@@ -41,6 +42,7 @@ export default function RecordTable({
   onUploadImage,
   onUpdateRow,
   onReturnScreenshot,
+  onDeleteScreenshot,
 }: RecordTableProps) {
   if (records.length === 0) {
     return (
@@ -104,11 +106,12 @@ export default function RecordTable({
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
             isSelected={selectedRowIds.includes(row.id)}
-            onToggleSelection={onToggleRowSelection}
+            onToggleSelection={(rowId, event) => onToggleRowSelection(rowId, event)}
             onViewImage={onViewImage}
             onUploadImage={onUploadImage}
             onUpdateRow={onUpdateRow}
             onReturnScreenshot={onReturnScreenshot}
+            onDeleteScreenshot={onDeleteScreenshot}
           />
         ))}
       </tbody>

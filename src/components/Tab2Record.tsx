@@ -1185,16 +1185,27 @@ export default function Tab2Record({
             </label>
           </div>
           
-          {/* 批量删除按钮 */}
+          {/* 批量操作按钮 */}
           {selectedRowIds.length > 0 && (
-            <button
-              onClick={deleteSelectedRows}
-              className="px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm"
-              title={`删除选中的 ${selectedRowIds.length} 行`}
-            >
-              <Trash2 size={14} />
-              ({selectedRowIds.length})
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={deleteSelectedScreenshots}
+                className="px-2 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm"
+                title={`删除选中行的游戏截图 (${selectedRowIds.length} 行)`}
+              >
+                <Trash2 size={14} />
+                删截图({selectedRowIds.length})
+              </button>
+              
+              <button
+                onClick={deleteSelectedRows}
+                className="px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm"
+                title={`删除选中的 ${selectedRowIds.length} 行`}
+              >
+                <Trash2 size={14} />
+                删行({selectedRowIds.length})
+              </button>
+            </div>
           )}
           
           {/* 底图组选择器 */}
@@ -1225,10 +1236,10 @@ export default function Tab2Record({
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
             selectedRowIds={selectedRowIds}
-            onToggleRowSelection={(filteredRowIndex) => {
+            onToggleRowSelection={(filteredRowIndex, event) => {
               // 通过过滤后的索引获取 row.id
               const rowId = filteredRecordList[filteredRowIndex].id;
-              toggleRowSelection(rowId);
+              toggleRowSelection(rowId, event);
             }}
             onToggleSelectAll={toggleSelectAll}
             onViewImage={(filteredRowIndex, type) => {
@@ -1261,6 +1272,12 @@ export default function Tab2Record({
               const rowId = filteredRecordList[filteredRowIndex].id;
               const originalRowIndex = recordList.findIndex(r => r.id === rowId);
               returnScreenshot(originalRowIndex);
+            }}
+            onDeleteScreenshot={(filteredRowIndex) => {
+              // 将过滤后的索引映射到原始列表索引
+              const rowId = filteredRecordList[filteredRowIndex].id;
+              const originalRowIndex = recordList.findIndex(r => r.id === rowId);
+              deleteScreenshotFromRow(originalRowIndex);
             }}
           />
         </div>

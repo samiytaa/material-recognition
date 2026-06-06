@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Undo2, ZoomIn, X } from 'lucide-react';
+import { Undo2, ZoomIn, X, Trash2 } from 'lucide-react';
 import { RecordRow } from '../../types';
 import categoryConfig from '../../categoryConfig.json';
 
@@ -47,11 +47,12 @@ interface RecordTableRowProps {
   basemapGroups: MapGroup[];
   selectedGroupId: string;
   isSelected: boolean;
-  onToggleSelection: (rowId: number) => void;
+  onToggleSelection: (rowId: number, event?: React.MouseEvent) => void;
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
   onReturnScreenshot?: (rowId: number) => void;
+  onDeleteScreenshot?: (rowId: number) => void;
 }
 
 interface BasemapItem {
@@ -114,6 +115,7 @@ export default function RecordTableRow({
   onUploadImage,
   onUpdateRow,
   onReturnScreenshot,
+  onDeleteScreenshot,
 }: RecordTableRowProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
@@ -181,7 +183,7 @@ export default function RecordTableRow({
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onToggleSelection(rowIndex)}
+            onChange={(e) => onToggleSelection(rowIndex, e as any)}
             className="w-4 h-4 cursor-pointer accent-[#8B6F47]"
           />
         </td>
@@ -276,6 +278,20 @@ export default function RecordTableRow({
                     title="退回到截图列表"
                   >
                     <Undo2 size={12} />
+                  </button>
+                )}
+                
+                {/* 删除截图按钮 */}
+                {onDeleteScreenshot && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteScreenshot(rowIndex);
+                    }}
+                    className="absolute bottom-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
+                    title="删除截图"
+                  >
+                    <Trash2 size={12} />
                   </button>
                 )}
               </>
