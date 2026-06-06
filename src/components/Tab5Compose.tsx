@@ -1,32 +1,14 @@
 import { Download, Eye, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { runDirectVisionMatching } from '../utils/visionApiHelper';
-import { UploadZone } from './common';
-
-// 导入底图图片
-import propGold from '/basemaps/prop-gold.png';
-import propPurple from '/basemaps/prop-purple.png';
-import propBlue from '/basemaps/prop-blue.png';
-import propGreen from '/basemaps/prop-green.png';
-import propBrown from '/basemaps/prop-brown.png';
+import { UploadZone, BasemapGroupSelector, BasemapColorPicker, RecognitionProgressModal } from './common';
+import { useBasemapGroups, type BasemapItem } from '../hooks';
 
 interface IconLibraryItem {
   id: string;
   name: string;
   base64: string;
   file: File;
-}
-
-interface BaseMapItem {
-  id: string;
-  image: string;
-  color: string;
-}
-
-interface BaseMapGroup {
-  id: string;
-  name: string;
-  thumbnails: BaseMapItem[];
 }
 
 export default function Tab5Compose() {
@@ -38,34 +20,11 @@ export default function Tab5Compose() {
   const [iconLibrary, setIconLibrary] = useState<IconLibraryItem[]>([]);
   const [selectedIconId, setSelectedIconId] = useState<string | null>(null);
 
-  // 底图状态 - 从Tab3的localStorage读取
-  const [baseMapGroups, setBaseMapGroups] = useState<BaseMapGroup[]>(() => {
-    const saved = localStorage.getItem('tab3_groups');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed;
-      } catch (e) {
-        console.error('读取底图组失败:', e);
-      }
-    }
-    // 默认底图组
-    return [
-      {
-        id: 'group_default',
-        name: '默认底图组',
-        thumbnails: [
-          { id: 'basemap_1', image: propGold, color: '金' },
-          { id: 'basemap_2', image: propPurple, color: '紫' },
-          { id: 'basemap_3', image: propBlue, color: '蓝' },
-          { id: 'basemap_4', image: propGreen, color: '绿' },
-          { id: 'basemap_5', image: propBrown, color: '咖' }
-        ]
-      }
-    ];
+  // 使用统一的底图组管理 Hook
+  const { groups: baseMapGroups } = useBasemapGroups(addLog);
+  const [selectedBaseMapGroupId, setSelectedBaseMapGroupId] = useState<string>(() => {
+    return baseMapGroups.length > 0 ? baseMapGroups[0].id : '';
   });
-  
-  const [selectedBaseMapGroupId, setSelectedBaseMapGroupId] = useState<string>('group_default');
   const [selectedBaseMapColor, setSelectedBaseMapColor] = useState<string | null>(null);
   
   // 获取当前选中的底图组
@@ -141,25 +100,10 @@ export default function Tab5Compose() {
       localStorage.setItem('tab5_batchSize', '5');
     }
 
-    // 监听Tab3底图组数据变化
-    const syncBaseMapGroups = () => {
-      const saved = localStorage.getItem('tab3_groups');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setBaseMapGroups(parsed);
-          addLog('已同步Tab3底图组数据');
-        } catch (e) {
-          console.error('同步底图组失败:', e);
-        }
-      }
-    };
-
-    // 初始同步
-    syncBaseMapGroups();
-
-    // 监听storage事件（跨标签页同步）
-    window.addEventListener('storage', syncBaseMapGroups);
+    // 初始化选中的底图组
+    if (baseMapGroups.length > 0 && !selectedBaseMapGroupId) {
+      setSelectedBaseMapGroupId(baseMapGroups[0].id);
+    }
 
     // 添加隐藏滚动条的样式
     const style = document.createElement('style');
@@ -171,9 +115,8 @@ export default function Tab5Compose() {
     document.head.appendChild(style);
     return () => {
       document.head.removeChild(style);
-      window.removeEventListener('storage', syncBaseMapGroups);
     };
-  }, []);
+  }, [baseMapGroups, selectedBaseMapGroupId]);
 
   // 添加日志
   const addLog = (message: string) => {
@@ -591,42 +534,23 @@ export default function Tab5Compose() {
               <h3 className="font-serif font-bold text-[#8B6F47] text-sm">
                 底图
               </h3>
-              <select
-                value={selectedBaseMapGroupId}
-                onChange={(e) => {
-                  setSelectedBaseMapGroupId(e.target.value);
+              <BasemapGroupSelector
+                groups={baseMapGroups}
+                selectedGroupId={selectedBaseMapGroupId}
+                onGroupChange={(groupId) => {
+                  setSelectedBaseMapGroupId(groupId);
                   setSelectedBaseMapColor(null);
-                  addLog(`切换到底图组: ${baseMapGroups.find(g => g.id === e.target.value)?.name}`);
+                  addLog(`切换到底图组: ${baseMapGroups.find(g => g.id === groupId)?.name}`);
                 }}
-                className="text-[10px] px-2 py-1 border border-[#E9DFD0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8B6F47] bg-white"
-              >
-                {baseMapGroups.map(group => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
+                className="text-[10px]"
+              />
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {baseMaps.map(baseMap => (
-                <div
-                  key={baseMap.id}
-                  onClick={() => setSelectedBaseMapColor(baseMap.color)}
-                  className={`bg-white rounded-xl p-3 border text-center w-16 transition-all cursor-pointer ${selectedBaseMapColor === baseMap.color
-                      ? 'border-2 border-[#1a73e8] bg-[#e8f0fe] shadow-md'
-                      : 'border-[#dce5ec] hover:border-[#8B6F47]'
-                    }`}
-                >
-                  <img
-                    src={baseMap.image}
-                    alt={baseMap.color}
-                    className="w-12 h-12 object-contain rounded-lg mx-auto bg-[#EEF2F5] shadow-sm"
-                  />
-                  <div className="text-[9px] mt-1.5 font-bold text-[#674b2d]">{baseMap.color}</div>
-                </div>
-              ))}
-            </div>
+            <BasemapColorPicker
+              basemaps={baseMaps}
+              selectedColor={selectedBaseMapColor}
+              onColorSelect={setSelectedBaseMapColor}
+            />
           </div>
         </div>
 
