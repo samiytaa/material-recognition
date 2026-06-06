@@ -1,56 +1,53 @@
-import { Download, Eye, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { runDirectVisionMatching } from '../utils/visionApiHelper';
-import { UploadZone, BasemapGroupSelector, BasemapColorPicker } from './common';
-import { useBasemapGroups, type BasemapItem } from '../hooks';
-
-interface IconLibraryItem {
-  id: string;
-  name: string;
-  base64: string;
-  file: File;
-}
+import { useBasemapGroups, useIconLibrary } from '../hooks';
+import {
+  ScreenshotPanel,
+  IconLibraryPanel,
+  BasemapPanel,
+  LogPanel,
+  CompositePanel
+} from './tab5';
+import { compositeImageWithBasemap } from '../utils/tab2Helper';
 
 export default function Tab5Compose() {
-  // 截图状态
-  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
-
-  // icon库状态
-  const [iconLibrary, setIconLibrary] = useState<IconLibraryItem[]>([]);
-  const [selectedIconId, setSelectedIconId] = useState<string | null>(null);
-
-  // 日志状态 - 需要在 useBasemapGroups 之前定义
+  // 日志状态
   const [logs, setLogs] = useState<string[]>([
     '[系统] 就绪。配置API Key后上传截图和透明icon库即可测试。',
     '[说明] 一键识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
   ]);
 
-  // 添加日志函数 - 需要在 useBasemapGroups 之前定义
   const addLog = (message: string) => {
     const time = new Date().toLocaleTimeString('zh-CN');
     setLogs(prev => [...prev, `[${time}] ${message}`]);
   };
 
-  // 使用统一的底图组管理 Hook
+  // 截图状态
+  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+
+  // icon库管理
+  const {
+    iconLibrary,
+    selectedIconId,
+    setSelectedIconId,
+    handleIconLibraryUpload,
+    deleteIcon,
+    clearIconLibrary,
+    restoreFromStorage
+  } = useIconLibrary(addLog);
+
+  // 底图组管理
   const { groups: baseMapGroups } = useBasemapGroups(addLog);
-  const [selectedBaseMapGroupId, setSelectedBaseMapGroupId] = useState<string>(() => {
-    return baseMapGroups.length > 0 ? baseMapGroups[0].id : '';
-  });
+  const [selectedBaseMapGroupId, setSelectedBaseMapGroupId] = useState<string>('');
   const [selectedBaseMapColor, setSelectedBaseMapColor] = useState<string | null>(null);
-  
-  // 获取当前选中的底图组
-  const currentBaseMapGroup = baseMapGroups.find(g => g.id === selectedBaseMapGroupId) || baseMapGroups[0];
-  const baseMaps = currentBaseMapGroup?.thumbnails || [];
 
   // 合成状态
   const [compositeFilename, setCompositeFilename] = useState<string>('合成图片.png');
   const [recognizedOcrName, setRecognizedOcrName] = useState<string>('');
-  
-  // 加底逻辑：Contain 等比缩放模式
   const [enableContainScale, setEnableContainScale] = useState<boolean>(() => {
     const saved = localStorage.getItem('tab5_enableContainScale');
-    return saved !== null ? saved === 'true' : true; // 默认启用
+    return saved !== null ? saved === 'true' : true;
   });
 
   // 批次大小控制
@@ -59,7 +56,7 @@ export default function Tab5Compose() {
   // refs
   const composeCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // 从全局 localStorage 加载 API 配置
+  // API 配置
   const [apiEndpoint, setApiEndpoint] = useState<string>('');
   const [apiKey, setApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -73,56 +70,35 @@ export default function Tab5Compose() {
     if (savedKey) setApiKey(savedKey);
     if (savedModel) setSelectedModel(savedModel);
 
-    // 从localStorage恢复上传的图片
     const savedScreenshot = localStorage.getItem('tab5_screenshot');
     const savedScreenshotBase64 = localStorage.getItem('tab5_screenshot_base64');
-    const savedIconLibrary = localStorage.getItem('tab5_icon_library');
-    const savedBatchSize = localStorage.getItem('tab5_batchSize');
-
     if (savedScreenshot && savedScreenshotBase64) {
       setScreenshotPreview(savedScreenshot);
       setScreenshotBase64(savedScreenshotBase64);
       addLog('已恢复上次上传的截图');
     }
 
-    if (savedIconLibrary) {
-      try {
-        const parsed = JSON.parse(savedIconLibrary);
-        setIconLibrary(parsed);
-        addLog(`已恢复 ${parsed.length} 个icon`);
-      } catch (e) {
-        console.error('恢复icon库失败', e);
-      }
-    }
+    restoreFromStorage();
 
-    // 恢复上次的批次数量设置，默认为5
+    const savedBatchSize = localStorage.getItem('tab5_batchSize');
     if (savedBatchSize) {
       const parsedBatchSize = parseInt(savedBatchSize);
       if (!isNaN(parsedBatchSize) && parsedBatchSize >= 1 && parsedBatchSize <= 20) {
         setBatchSize(parsedBatchSize);
       }
     } else {
-      // 首次使用时设置默认值为5
       localStorage.setItem('tab5_batchSize', '5');
     }
 
-    // 初始化选中的底图组
     if (baseMapGroups.length > 0 && !selectedBaseMapGroupId) {
       setSelectedBaseMapGroupId(baseMapGroups[0].id);
     }
 
-    // 添加隐藏滚动条的样式
     const style = document.createElement('style');
-    style.textContent = `
-      .hide-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-    `;
+    style.textContent = `.hide-scrollbar::-webkit-scrollbar { display: none; }`;
     document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, [baseMapGroups, selectedBaseMapGroupId]);
+    return () => { document.head.removeChild(style); };
+  }, [baseMapGroups, selectedBaseMapGroupId, restoreFromStorage]);
 
   // 截图上传处理
   const handleScreenshotUpload = async (files: FileList) => {
@@ -162,73 +138,7 @@ export default function Tab5Compose() {
     addLog('截图已清除');
   };
 
-  // icon库批量上传
-  const handleIconLibraryUpload = async (files: FileList) => {
-    const fileArray = Array.from(files);
-    let successCount = 0;
-    let skipCount = 0;
-    const skippedFiles: string[] = [];
-    const newIcons: IconLibraryItem[] = [];
 
-    for (const file of fileArray) {
-      if (!file.type.startsWith('image/')) {
-        addLog(`跳过非图片文件: ${file.name}`);
-        continue;
-      }
-
-      // 检查文件名是否已存在
-      const isDuplicate = iconLibrary.some(icon => icon.name === file.name);
-      if (isDuplicate) {
-        skippedFiles.push(file.name);
-        skipCount++;
-        continue;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        const base64 = dataUrl.split(',')[1];
-
-        const newIcon: IconLibraryItem = {
-          id: `icon_${Date.now()}_${Math.random()}`,
-          name: file.name,
-          base64: base64,
-          file: file
-        };
-
-        newIcons.push(newIcon);
-
-        // 更新状态和localStorage
-        setIconLibrary(prev => {
-          const updated = [...prev, newIcon];
-          localStorage.setItem('tab5_icon_library', JSON.stringify(updated));
-          return updated;
-        });
-        successCount++;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // 延迟显示日志，确保所有文件都处理完
-    setTimeout(() => {
-      if (successCount > 0) {
-        addLog(`成功添加 ${successCount} 个透明icon到库中`);
-      }
-      if (skipCount > 0) {
-        addLog(`跳过 ${skipCount} 个重复文件名: ${skippedFiles.slice(0, 3).join(', ')}${skipCount > 3 ? '...' : ''}`);
-      }
-    }, 100);
-  };
-
-  // 清空icon库
-  const handleClearIcons = () => {
-    if (confirm('确定要清空所有icon吗？')) {
-      setIconLibrary([]);
-      setSelectedIconId(null);
-      localStorage.removeItem('tab5_icon_library');
-      addLog('icon库已清空');
-    }
-  };
 
   // 直接视觉识别（提示词在 visionApiHelper.ts 中统一定义，Tab2 也使用同一提示词）
   const handleRunDirectMatching = async () => {
@@ -298,7 +208,7 @@ export default function Tab5Compose() {
     }
   };
 
-  const renderComposite = (baseMapColor: string, iconId: string) => {
+  const renderComposite = async (baseMapColor: string, iconId: string) => {
     const canvas = composeCanvasRef.current;
     if (!canvas) return;
 
@@ -307,58 +217,30 @@ export default function Tab5Compose() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const currentGroup = baseMapGroups.find(g => g.id === selectedBaseMapGroupId);
+    const baseMaps = currentGroup?.thumbnails || [];
     const baseMap = baseMaps.find(b => b.color === baseMapColor);
     const icon = iconLibrary.find(i => i.id === iconId);
 
     if (!baseMap || !icon) return;
 
-    const baseImg = new Image();
-    baseImg.onload = () => {
-      // 绘制底图（目标画布尺寸固定为底图尺寸）
-      ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+    try {
+      const compositeDataUrl = await compositeImageWithBasemap(
+        `data:image/png;base64,${icon.base64}`,
+        baseMap.image,
+        enableContainScale
+      );
 
-      const iconImg = new Image();
-      iconImg.onload = () => {
-        if (enableContainScale) {
-          // Contain 等比缩放模式：画布边界等比适配居中算法
-          const targetWidth = canvas.width;
-          const targetHeight = canvas.height;
-          const sourceWidth = iconImg.width;
-          const sourceHeight = iconImg.height;
-          
-          // 计算缩放系数：min(目标宽/源宽, 目标高/源高)
-          const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
-          
-          // 缩放后的尺寸
-          const scaledWidth = sourceWidth * scale;
-          const scaledHeight = sourceHeight * scale;
-          
-          // 中心锚点居中定位
-          const offsetX = (targetWidth - scaledWidth) / 2;
-          const offsetY = (targetHeight - scaledHeight) / 2;
-          
-          // 绘制等比缩放后居中的 icon
-          ctx.drawImage(iconImg, offsetX, offsetY, scaledWidth, scaledHeight);
-          addLog('[合成] 使用 Contain 等比缩放模式完成');
-        } else {
-          // 禁用缩放模式：原图原始尺寸居中渲染，超出画布区域裁切
-          const targetWidth = canvas.width;
-          const targetHeight = canvas.height;
-          const sourceWidth = iconImg.width;
-          const sourceHeight = iconImg.height;
-          
-          // 中心锚点居中定位
-          const offsetX = (targetWidth - sourceWidth) / 2;
-          const offsetY = (targetHeight - sourceHeight) / 2;
-          
-          // 直接绘制原尺寸 icon（Canvas 会自动裁切超出部分）
-          ctx.drawImage(iconImg, offsetX, offsetY, sourceWidth, sourceHeight);
-          addLog('[合成] 使用原始尺寸模式（超出裁切）完成');
-        }
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const mode = enableContainScale ? 'Contain 等比缩放' : '原始尺寸（超出裁切）';
+        addLog(`[合成] 使用 ${mode} 模式完成`);
       };
-      iconImg.src = `data:image/png;base64,${icon.base64}`;
-    };
-    baseImg.src = baseMap.image;
+      img.src = compositeDataUrl;
+    } catch (error) {
+      addLog('[合成] 合成失败');
+    }
   };
 
   // 刷新合成
@@ -390,11 +272,31 @@ export default function Tab5Compose() {
 
 
 
-  // 清空日志
   const handleClearLogs = () => {
     setLogs([]);
     addLog('[系统] 日志已清空');
   };
+
+  const handleBatchSizeChange = (size: number) => {
+    setBatchSize(size);
+    localStorage.setItem('tab5_batchSize', size.toString());
+  };
+
+  const handleContainScaleChange = (enabled: boolean) => {
+    setEnableContainScale(enabled);
+    if (selectedBaseMapColor && selectedIconId) {
+      setTimeout(() => renderComposite(selectedBaseMapColor, selectedIconId), 50);
+    }
+  };
+
+  const canRunRecognition = !!(screenshotBase64 && iconLibrary.length > 0 && apiEndpoint && apiKey && selectedModel);
+  const recognitionTooltip = !apiEndpoint || !apiKey || !selectedModel
+    ? '请先配置API'
+    : !screenshotBase64
+    ? '请先上传截图'
+    : iconLibrary.length === 0
+    ? '请先添加icon'
+    : '一键识别 - AI将直接看到参考图和候选icon图片';
 
   return (
     <div
@@ -403,313 +305,59 @@ export default function Tab5Compose() {
     >
       <div className="flex-shrink-0 space-y-4 px-2 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <ScreenshotPanel
+            screenshotPreview={screenshotPreview}
+            onScreenshotUpload={handleScreenshotUpload}
+            onClearScreenshot={handleClearScreenshot}
+          />
 
-          {/* 1. 游戏内截图 */}
-          <div className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-4 shadow-xs traditional-shadow decorative-corners">
-            <h3 className="font-serif font-bold text-[#8B6F47] text-sm mb-3">
-              游戏内截图
-            </h3>
+          <IconLibraryPanel
+            iconLibrary={iconLibrary}
+            selectedIconId={selectedIconId}
+            onIconSelect={setSelectedIconId}
+            onIconUpload={handleIconLibraryUpload}
+            onIconDelete={deleteIcon}
+            onClearAll={clearIconLibrary}
+            addLog={addLog}
+          />
 
-            {screenshotPreview ? (
-              <>
-                <div className="bg-[#F8FAFC] rounded-xl min-h-[180px] flex items-center justify-center mb-3">
-                  <img src={screenshotPreview} alt="截图" className="max-w-full max-h-[200px] rounded-lg shadow-sm" />
-                </div>
-
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={handleClearScreenshot}
-                    className="w-full px-3 py-1.5 bg-[#9E4A4A]/10 hover:bg-[#9E4A4A]/20 text-[#9E4A4A] text-xs font-bold rounded-full transition-all cursor-pointer"
-                  >
-                    清除截图
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="bg-white/70 border-2 border-[#DFD2BD] rounded-2xl overflow-hidden">
-                <UploadZone
-                  onFilesSelected={handleScreenshotUpload}
-                  accept="image/png,image/jpeg,image/webp"
-                  multiple={false}
-                  text="支持拖入截图"
-                  subText="或点击窗口选择游戏内截图文件"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 2. 透明 icon  */}
-          <div className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-4 shadow-xs traditional-shadow decorative-corners">
-            <h3 className="font-serif font-bold text-[#8B6F47] text-sm mb-3">
-              透明 icon
-            </h3>
-
-            {iconLibrary.length === 0 ? (
-              <div className="bg-white/70 border-2 border-[#DFD2BD] rounded-2xl overflow-hidden">
-                <UploadZone
-                  onFilesSelected={handleIconLibraryUpload}
-                  accept="image/png,image/webp,image/jpeg"
-                  multiple={true}
-                  text="支持拖入透明icon"
-                  subText="或点击窗口批量选择透明背景图标文件"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="bg-[#F9FBFD] rounded-xl p-1 min-h-[120px] max-h-[220px] overflow-y-auto mb-3">
-                  <div className="grid grid-cols-6 gap-1">
-                    {iconLibrary.map(icon => (
-                      <div
-                        key={icon.id}
-                        onClick={() => setSelectedIconId(icon.id)}
-                        className={`bg-white rounded-lg p-1 border cursor-pointer transition-all relative group ${selectedIconId === icon.id
-                            ? 'border-2 border-[#1a73e8] bg-[#e8f0fe]'
-                            : 'border-[#dce5ec] hover:border-[#8B6F47]'
-                          } text-center aspect-square flex flex-col items-center justify-center`}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIconLibrary(prev => {
-                              const updated = prev.filter(i => i.id !== icon.id);
-                              localStorage.setItem('tab5_icon_library', JSON.stringify(updated));
-                              return updated;
-                            });
-                            if (selectedIconId === icon.id) {
-                              setSelectedIconId(null);
-                            }
-                            addLog(`删除icon: ${icon.name}`);
-                          }}
-                          className="absolute top-0 right-0 bg-[#9E4A4A] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                          title="删除"
-                        >
-                          ×
-                        </button>
-                        <div className="w-full aspect-square bg-white rounded flex items-center justify-center mb-0.5">
-                          <img
-                            src={`data:image/png;base64,${icon.base64}`}
-                            alt={icon.name}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
-                        <div className="text-[8px] truncate w-full px-0.5">{icon.name}</div>
-                      </div>
-                    ))}
-
-                    {/* 追加图片虚线格子 */}
-                    <label className="bg-white rounded-lg p-1 border-2 border-dashed border-[#8B6F47]/40 hover:border-[#8B6F47] hover:bg-[#8B6F47]/5 cursor-pointer transition-all text-center aspect-square flex flex-col items-center justify-center">
-                      <input
-                        type="file"
-                        accept="image/png,image/webp,image/jpeg"
-                        multiple
-                        onChange={(e) => {
-                          if (e.target.files) {
-                            handleIconLibraryUpload(e.target.files);
-                          }
-                          e.target.value = '';
-                        }}
-                        className="hidden"
-                      />
-                      <div className="w-full aspect-square bg-white rounded flex items-center justify-center mb-0.5">
-                        <div className="text-2xl font-light text-[#8B6F47]">+</div>
-                      </div>
-                      <div className="text-[8px] truncate w-full px-0.5 text-[#8B6F47]">追加</div>
-                    </label>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleClearIcons}
-                  className="w-full px-3 py-1.5 bg-[#9E4A4A]/10 hover:bg-[#9E4A4A]/20 text-[#9E4A4A] text-xs font-bold rounded-full transition-all cursor-pointer"
-                >
-                  清空全部
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* 3. 底图 */}
-          <div className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-4 shadow-xs traditional-shadow decorative-corners">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-serif font-bold text-[#8B6F47] text-sm">
-                底图
-              </h3>
-              <BasemapGroupSelector
-                groups={baseMapGroups}
-                selectedGroupId={selectedBaseMapGroupId}
-                onGroupChange={(groupId) => {
-                  setSelectedBaseMapGroupId(groupId);
-                  setSelectedBaseMapColor(null);
-                  addLog(`切换到底图组: ${baseMapGroups.find(g => g.id === groupId)?.name}`);
-                }}
-                className="text-[10px]"
-              />
-            </div>
-
-            <BasemapColorPicker
-              basemaps={baseMaps}
-              selectedColor={selectedBaseMapColor}
-              onColorSelect={setSelectedBaseMapColor}
-            />
-          </div>
+          <BasemapPanel
+            basemapGroups={baseMapGroups}
+            selectedGroupId={selectedBaseMapGroupId}
+            selectedColor={selectedBaseMapColor}
+            onGroupChange={setSelectedBaseMapGroupId}
+            onColorSelect={setSelectedBaseMapColor}
+            addLog={addLog}
+          />
         </div>
 
-        {/* 第二行：两个卡片 - 日志、合成图片展示 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <LogPanel
+            logs={logs}
+            batchSize={batchSize}
+            onBatchSizeChange={handleBatchSizeChange}
+            onRunRecognition={handleRunDirectMatching}
+            onClearLogs={handleClearLogs}
+            canRunRecognition={canRunRecognition}
+            recognitionTooltip={recognitionTooltip}
+          />
 
-          {/* 左侧: 日志 */}
-          <div className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-4 shadow-xs traditional-shadow decorative-corners">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-serif font-bold text-[#8B6F47] text-sm">
-                日志
-              </h3>
-              <div className="flex gap-2 items-center">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-[10px] text-[#674b2d] font-bold whitespace-nowrap">每批数量</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={batchSize}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (val >= 1 && val <= 20) {
-                        setBatchSize(val);
-                        // 保存到localStorage
-                        localStorage.setItem('tab5_batchSize', val.toString());
-                      }
-                    }}
-                    className="w-14 text-xs px-2 py-1 border border-[#E9DFD0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8B6F47] bg-white text-center"
-                  />
-                </div>
-                <button
-                  onClick={handleRunDirectMatching}
-                  disabled={!screenshotBase64 || iconLibrary.length === 0 || !apiEndpoint || !apiKey || !selectedModel}
-                  className="px-4 py-1.5 bg-gradient-to-r from-[#4A7C9E] to-[#5B8CAE] hover:from-[#396380] hover:to-[#4A7C9E] text-white text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500"
-                  title={!apiEndpoint || !apiKey || !selectedModel ? '请先配置API' : !screenshotBase64 ? '请先上传截图' : iconLibrary.length === 0 ? '请先添加icon' : '一键识别 - AI将直接看到参考图和候选icon图片'}
-                >
-                  <Eye size={13} />
-                  一键识别
-                </button>
-                <button
-                  onClick={handleClearLogs}
-                  className="px-3 py-1.5 bg-[#8B6F47]/10 hover:bg-[#8B6F47]/20 text-[#674b2d] text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
-                >
-                  <Trash2 size={12} />
-                  清空日志
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-[#1E293B] text-[#E2E8F0] rounded-xl p-4 font-mono text-[10px] h-[280px] overflow-y-auto whitespace-pre-wrap break-words">
-              {logs.map((log, idx) => (
-                <div key={idx}>{log}</div>
-              ))}
-            </div>
-
-            <div className="mt-3 text-right text-[9px] text-[#7f8c8d]">
-
-            </div>
-          </div>
-
-          {/* 右侧: 合成图片 */}
-          <div className="bg-[#FFFBF6] border border-[#E9DFD0] rounded-2xl p-4 shadow-xs traditional-shadow decorative-corners">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-serif font-bold text-[#8B6F47] text-sm">
-                合成图片
-              </h3>
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={enableContainScale}
-                    onChange={(e) => {
-                      const newValue = e.target.checked;
-                      setEnableContainScale(newValue);
-                      localStorage.setItem('tab5_enableContainScale', newValue.toString());
-                      addLog(`[设置] ${newValue ? '启用' : '禁用'} Contain 等比缩放模式`);
-                      // 如果已有合成结果，自动重新渲染
-                      if (selectedBaseMapColor && selectedIconId) {
-                        setTimeout(() => renderComposite(selectedBaseMapColor, selectedIconId), 50);
-                      }
-                    }}
-                    className="w-3.5 h-3.5 rounded border-[#8B6F47] text-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] cursor-pointer"
-                  />
-                  <span className="text-[10px] text-[#674b2d] font-bold whitespace-nowrap group-hover:text-[#8B6F47] transition-colors">
-                    等比缩放
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-[#F8FAFC] to-[#E2E8F0] rounded-xl p-4 flex items-center justify-center min-h-[180px] mb-3"
-              style={{
-                backgroundImage: `
-                  linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
-                  linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
-                  linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
-                  linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)
-                `,
-                backgroundSize: '20px 20px',
-                backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0'
-              }}
-            >
-              {selectedBaseMapColor && selectedIconId && (
-                <canvas
-                  ref={composeCanvasRef}
-                  width="140"
-                  height="140"
-                  className="rounded-xl shadow-lg"
-                  style={{ width: '140px', height: '140px' }}
-                />
-              )}
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-[#674b2d] mb-1">下载文件名</label>
-              <input
-                type="text"
-                value={compositeFilename}
-                onChange={(e) => setCompositeFilename(e.target.value)}
-                placeholder="等待OCR识别物品名称"
-                className="w-full text-xs px-3 py-2 border border-[#E9DFD0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8B6F47] bg-white mb-3"
-              />
-
-              <div className="bg-[#F8FAFC] border border-[#E9DFD0] rounded-xl p-3 text-xs text-[#674b2d] leading-relaxed mb-3">
-                {selectedBaseMapColor && selectedIconId ? (
-                  <>
-                    <div><strong>底图颜色:</strong> {selectedBaseMapColor}</div>
-                    <div><strong>匹配Icon:</strong> {iconLibrary.find(i => i.id === selectedIconId)?.name}</div>
-                    <div><strong>识别名称:</strong> {recognizedOcrName || '未识别'}</div>
-                  </>
-                ) : (
-                  '当前需要先完成底图定位和 icon 匹配。'
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={handleDownloadCompose}
-                  disabled={!selectedBaseMapColor || !selectedIconId}
-                  className="px-3 py-1.5 bg-[#8B6F47] hover:bg-[#6F5839] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <Download size={12} />
-                  下载
-                </button>
-                <button
-                  onClick={handleRefreshCompose}
-                  className="px-3 py-1.5 bg-[#8B6F47]/10 hover:bg-[#8B6F47]/20 text-[#674b2d] text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
-                >
-                  <RefreshCw size={12} />
-                  刷新合成
-                </button>
-              </div>
-            </div>
-          </div>
-
+          <CompositePanel
+            canvasRef={composeCanvasRef}
+            compositeFilename={compositeFilename}
+            recognizedOcrName={recognizedOcrName}
+            selectedBaseMapColor={selectedBaseMapColor}
+            selectedIconId={selectedIconId}
+            iconLibrary={iconLibrary}
+            enableContainScale={enableContainScale}
+            onFilenameChange={setCompositeFilename}
+            onContainScaleChange={handleContainScaleChange}
+            onDownload={handleDownloadCompose}
+            onRefresh={handleRefreshCompose}
+            addLog={addLog}
+          />
         </div>
       </div>
-
     </div>
   );
 }
