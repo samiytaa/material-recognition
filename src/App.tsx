@@ -491,6 +491,9 @@ export default function App() {
                   addLog={addLog}
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
+                  recordList={recordList}
+                  setRecordList={setRecordList}
+                  addRecordLog={addRecordLog}
                 />
               </motion.div>
             ) : activeTab === 'tab2' ? (

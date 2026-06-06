@@ -626,16 +626,28 @@ export default function Tab2Record({
 
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">
         {/* 底图组选择器和批量删除按钮 */}
-        <div className="mb-4 flex gap-3">
+        <div className="mb-3 flex items-center gap-2">
+          {/* 批量删除按钮 */}
+          {selectedRowIds.length > 0 && (
+            <button
+              onClick={deleteSelectedRows}
+              className="px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm"
+              title={`删除选中的 ${selectedRowIds.length} 行`}
+            >
+              <Trash2 size={14} />
+              ({selectedRowIds.length})
+            </button>
+          )}
+          
           {basemapGroups.length > 0 && (
-            <div className="flex-1 p-3 bg-[#FAF8F4] border border-[#E9DFDB] rounded-lg">
-              <label className="block text-xs font-bold text-[#674b2d] mb-2">
+            <div className="flex items-center gap-2 flex-1">
+              <label className="text-xs font-semibold text-[#674b2d] whitespace-nowrap">
                 选择底图组：
               </label>
               <select
                 value={selectedGroupId}
                 onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="w-full text-sm px-3 py-2 bg-white border border-[#DFD2BD] rounded-lg outline-none font-semibold text-[#674b2d] focus:border-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47]"
+                className="flex-1 text-xs px-2 py-1.5 bg-white border border-[#DFD2BD] rounded-md outline-none font-medium text-[#674b2d] hover:border-[#8B6F47] focus:border-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] transition-colors"
               >
                 {basemapGroups.map(group => (
                   <option key={group.id} value={group.id}>
@@ -643,19 +655,6 @@ export default function Tab2Record({
                   </option>
                 ))}
               </select>
-            </div>
-          )}
-          
-          {/* 批量删除按钮区域 */}
-          {selectedRowIds.length > 0 && (
-            <div className="flex-1 p-3 bg-[#FFF5F5] border border-[#FED7D7] rounded-lg flex items-end">
-              <button
-                onClick={deleteSelectedRows}
-                className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <Trash2 size={16} />
-                删除选中 ({selectedRowIds.length})
-              </button>
             </div>
           )}
         </div>
