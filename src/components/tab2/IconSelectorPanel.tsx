@@ -43,8 +43,8 @@ export default function IconSelectorPanel({
         onClick={onClose}
       />
       
-      {/* 侧边面板 */}
-      <div className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r-2 border-[#DFD2BD] shadow-xl z-20 flex flex-col">
+      {/* 右侧面板 */}
+      <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l-2 border-[#DFD2BD] shadow-xl z-20 flex flex-col">
         {/* 标题栏 */}
         <div className="flex-none border-b border-[#E9DFDB] bg-gradient-to-r from-[#7A4E3A] to-[#B9704D] px-4 py-3">
           <div className="text-xs font-bold text-[#FFF2C5] tracking-wide">
@@ -76,7 +76,7 @@ export default function IconSelectorPanel({
               {searchKeyword ? '未找到匹配的 icon' : 'Tab1 中没有可用的 icon'}
             </div>
           ) : (
-            <div className="p-2 space-y-1">
+            <div className="p-3 space-y-2">
               {filteredIcons.map((prop, idx) => (
                 <button
                   key={idx}
@@ -84,26 +84,16 @@ export default function IconSelectorPanel({
                     onSelect(prop);
                     onClose();
                   }}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg border border-transparent hover:border-[#B9704D] hover:bg-[#FAF8F4] transition group"
+                  className="w-full p-3 rounded-lg border-2 border-[#E9DFDB] hover:border-[#B9704D] hover:bg-[#FAF8F4] transition group"
                   title={prop.displayName}
                 >
-                  {/* 图标缩略图 */}
-                  <div className="flex-none w-12 h-12 rounded border border-[#E9DFDB] overflow-hidden bg-white flex items-center justify-center">
+                  {/* 图标 */}
+                  <div className="w-full aspect-square rounded overflow-hidden bg-white flex items-center justify-center">
                     <img
                       src={prop.image || ''}
                       alt={prop.displayName}
                       className="max-w-full max-h-full object-contain"
                     />
-                  </div>
-                  
-                  {/* 图标名称 */}
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="text-xs font-bold text-[#674b2d] truncate group-hover:text-[#B9704D] transition">
-                      {prop.displayName}
-                    </div>
-                    <div className="text-[10px] text-[#8B7355] truncate mt-0.5">
-                      {prop.name}
-                    </div>
                   </div>
                 </button>
               ))}

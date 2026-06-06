@@ -91,6 +91,8 @@ export default function CalibrationReviewModal({
   onReplaceIcon
 }: CalibrationReviewModalProps) {
   const [showReplacePanel, setShowReplacePanel] = React.useState(false);
+  const [quickReviewMode, setQuickReviewMode] = React.useState(false);
+  const [showLastRowTip, setShowLastRowTip] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -125,7 +127,7 @@ export default function CalibrationReviewModal({
           // 确认（已确认状态下禁用）
           if (canReviewIcon && iconStatus !== 'confirmed') {
             e.preventDefault();
-            onConfirm();
+            handleConfirmWithAutoNext();
           }
           break;
         case 'Backspace':
@@ -134,7 +136,7 @@ export default function CalibrationReviewModal({
           // 退回
           if (canReviewIcon) {
             e.preventDefault();
-            onReturn();
+            handleReturnWithAutoNext();
           }
           break;
         case 'Escape':
@@ -153,8 +155,17 @@ export default function CalibrationReviewModal({
   React.useEffect(() => {
     if (!isOpen) {
       setShowReplacePanel(false);
+      setShowLastRowTip(false);
     }
   }, [isOpen]);
+
+  // 自动隐藏"最后一行"提示
+  React.useEffect(() => {
+    if (showLastRowTip) {
+      const timer = setTimeout(() => setShowLastRowTip(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showLastRowTip]);
 
   if (!isOpen) return null;
 
@@ -167,6 +178,41 @@ export default function CalibrationReviewModal({
   const handleReplaceIconClick = (prop: PropItem) => {
     if (onReplaceIcon) {
       onReplaceIcon(currentIndex, prop);
+    }
+  };
+
+  // 快速校对模式：执行操作后自动跳转到下一行
+  const handleConfirmWithAutoNext = () => {
+    onConfirm();
+    
+    if (quickReviewMode) {
+      const hasNext = currentIndex < rows.length - 1;
+      if (hasNext) {
+        // 延迟跳转，确保确认操作完成
+        setTimeout(() => {
+          onNavigate(currentIndex + 1);
+        }, 100);
+      } else {
+        // 最后一行，显示提示
+        setShowLastRowTip(true);
+      }
+    }
+  };
+
+  const handleReturnWithAutoNext = () => {
+    onReturn();
+    
+    if (quickReviewMode) {
+      const hasNext = currentIndex < rows.length - 1;
+      if (hasNext) {
+        // 延迟跳转，确保退回操作完成
+        setTimeout(() => {
+          onNavigate(currentIndex + 1);
+        }, 100);
+      } else {
+        // 最后一行，显示提示
+        setShowLastRowTip(true);
+      }
     }
   };
 
@@ -225,6 +271,33 @@ export default function CalibrationReviewModal({
         </div>
 
         <div className="border-t border-[#DFD2BD]/70 bg-[#FAF8F4] px-5 py-4">
+          {/* 快速校对模式开关 */}
+          <div className="mb-3 flex items-center justify-center gap-2">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={quickReviewMode}
+                onChange={(e) => setQuickReviewMode(e.target.checked)}
+                className="h-4 w-4 rounded border-[#DFD2BD] text-[#0F9F6E] focus:ring-2 focus:ring-[#0F9F6E]/30 focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-xs font-bold text-[#674b2d]">
+                快速校对模式
+              </span>
+              <span className="text-[10px] text-[#8B6F47]">
+                （确认/退回后自动跳转到下一行）
+              </span>
+            </label>
+          </div>
+
+          {/* 最后一行提示 */}
+          {showLastRowTip && (
+            <div className="mb-3 flex items-center justify-center">
+              <div className="rounded-lg border border-[#F3C16E] bg-[#FFF8E1] px-4 py-2 text-xs font-bold text-[#A45E00] shadow-sm animate-pulse">
+                已是最后一条
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => onNavigate(currentIndex - 1)}
@@ -236,7 +309,7 @@ export default function CalibrationReviewModal({
               上一行
             </button>
             <button
-              onClick={onReturn}
+              onClick={handleReturnWithAutoNext}
               disabled={!canReviewIcon}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#F3C16E] bg-[#FFF8E1] px-4 py-2 text-xs font-bold text-[#A45E00] transition hover:bg-[#FFECB3] disabled:cursor-not-allowed disabled:opacity-50"
               title="退回当前行icon (Backspace / R)"
@@ -245,7 +318,7 @@ export default function CalibrationReviewModal({
               退回
             </button>
             <button
-              onClick={onConfirm}
+              onClick={handleConfirmWithAutoNext}
               disabled={!canReviewIcon || iconStatus === 'confirmed'}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#0F8F5F] bg-[#0F9F6E] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0B8159] disabled:cursor-not-allowed disabled:opacity-50"
               title={iconStatus === 'confirmed' ? '已确认 (Enter)' : '确认当前行icon (Enter)'}
