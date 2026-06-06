@@ -8,3 +8,5 @@ export { default as ProgressBar } from './ProgressBar';
 export { default as RecognitionProgressModal } from './RecognitionProgressModal';
 export { BasemapGroupSelector } from './BasemapGroupSelector';
 export { BasemapColorPicker } from './BasemapColorPicker';
+export { default as HelpModal } from './HelpModal';
+export { default as ApiConfigModal } from './ApiConfigModal';
