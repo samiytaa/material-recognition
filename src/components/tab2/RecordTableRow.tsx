@@ -179,12 +179,15 @@ export default function RecordTableRow({
     <>
       <tr className="hover:bg-[#FDFBF8]/80 group transition-all">
         {/* 选择框列 */}
-        <td className="p-2 border border-[#F2ECE5] text-center w-[40px]">
+        <td 
+          className="p-2 border border-[#F2ECE5] text-center w-[40px] cursor-pointer"
+          onClick={(e) => onToggleSelection(rowIndex, e)}
+        >
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={(e) => onToggleSelection(rowIndex, e as any)}
-            className="w-4 h-4 cursor-pointer accent-[#8B6F47]"
+            onChange={(e) => e.stopPropagation()}
+            className="w-4 h-4 cursor-pointer accent-[#8B6F47] pointer-events-none"
           />
         </td>
 
