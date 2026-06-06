@@ -283,7 +283,8 @@ export default function RecordTableRow({
             onClick={(e) => {
               e.stopPropagation();
               if (!row.originalImage) {
-                onUploadImage(rowIndex, 'original');
+                // 没有 icon 时，点击打开校对弹窗
+                onViewImage(rowIndex, 'original');
               }
             }}
           >
@@ -308,7 +309,7 @@ export default function RecordTableRow({
 
         {/* 确认状态 */}
         <td className="p-2 border border-[#F2ECE5]">
-          <div className="flex flex-col items-center justify-center gap-1.5">
+          <div className="flex items-center justify-center">
             {iconStatus === 'confirmed' ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
                 <CheckCircle size={11} />
@@ -321,68 +322,6 @@ export default function RecordTableRow({
               </span>
             ) : (
               <span className="text-[10px] font-bold text-[#C5B198]">未匹配</span>
-            )}
-
-            {iconStatus === 'ai' && (
-              <div className="flex gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmIcon(rowIndex);
-                  }}
-                  className="inline-flex items-center justify-center rounded bg-emerald-600 text-white transition hover:bg-emerald-700 relative group/confirm"
-                  style={{
-                    height: '24px',
-                    width: isHovered ? 'auto' : '24px',
-                    minWidth: '24px',
-                    padding: isHovered ? '0 8px' : '0',
-                    transition: 'all 0.2s ease'
-                  }}
-                  title="确认此 icon"
-                >
-                  <CheckCircle size={12} />
-                  {isHovered && <span className="ml-1 text-[10px] font-bold whitespace-nowrap">确认</span>}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReturnIcon(rowIndex);
-                  }}
-                  className="inline-flex items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600 relative group/return"
-                  style={{
-                    height: '24px',
-                    width: isHovered ? 'auto' : '24px',
-                    minWidth: '24px',
-                    padding: isHovered ? '0 8px' : '0',
-                    transition: 'all 0.2s ease'
-                  }}
-                  title="退回此 icon 并重新识别"
-                >
-                  <RotateCcw size={12} />
-                  {isHovered && <span className="ml-1 text-[10px] font-bold whitespace-nowrap">退回</span>}
-                </button>
-              </div>
-            )}
-
-            {iconStatus === 'confirmed' && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReturnIcon(rowIndex);
-                }}
-                className="inline-flex items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600"
-                style={{
-                  height: '24px',
-                  width: isHovered ? 'auto' : '24px',
-                  minWidth: '24px',
-                  padding: isHovered ? '0 8px' : '0',
-                  transition: 'all 0.2s ease'
-                }}
-                title="退回此 icon"
-              >
-                <RotateCcw size={12} />
-                {isHovered && <span className="ml-1 text-[10px] font-bold whitespace-nowrap">退回</span>}
-              </button>
             )}
           </div>
         </td>

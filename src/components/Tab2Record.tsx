@@ -13,8 +13,13 @@ import {
   useTab2RecordController,
   type Tab2RecordControllerProps as Tab2RecordProps
 } from '../hooks/useTab2RecordController';
+import { PropItem } from '../types';
 
-export default function Tab2Record(props: Tab2RecordProps) {
+interface Tab2RecordPropsExtended extends Tab2RecordProps {
+  tab1PropsList: PropItem[]; // Tab1 的 icon 列表
+}
+
+export default function Tab2Record(props: Tab2RecordPropsExtended) {
   const [reviewModalOpen, setReviewModalOpen] = React.useState(false);
   const [reviewRowId, setReviewRowId] = React.useState<number | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = React.useState<number | null>(null);
@@ -63,7 +68,7 @@ export default function Tab2Record(props: Tab2RecordProps) {
     getIconStatus
   } = useTab2RecordController(props);
 
-  const { recordList, setRecordList, recordLogs, addRecordLog, clearRecordLogs } = props;
+  const { recordList, setRecordList, recordLogs, addRecordLog, clearRecordLogs, tab1PropsList } = props;
   const reviewRows = filteredRecordList;
   const reviewCurrentIndex = reviewRowId === null
     ? -1
@@ -125,6 +130,34 @@ export default function Tab2Record(props: Tab2RecordProps) {
     returnRowIcon(reviewOriginalIndex);
   };
 
+  const handleReplaceIcon = (rowIndex: number, selectedProp: PropItem) => {
+    if (rowIndex < 0 || rowIndex >= reviewRows.length) return;
+    
+    const targetRow = reviewRows[rowIndex];
+    const originalIndex = recordList.findIndex(row => row.id === targetRow.id);
+    
+    if (originalIndex === -1) return;
+
+    setRecordList(prev => {
+      const updated = [...prev];
+      updated[originalIndex] = {
+        ...updated[originalIndex],
+        originalImage: selectedProp.image,
+        originalImageFileName: selectedProp.name,
+        propName: selectedProp.displayName,
+        outputName: selectedProp.displayName,
+        propType: selectedProp.type === 'furniture' ? '家具' : '其他道具',
+        propCategory: selectedProp.category,
+        propRelated: selectedProp.ownership.name 
+          ? `${selectedProp.ownership.type === 'male_lead' ? '男主' : '密探'}-${selectedProp.ownership.name}`
+          : '无'
+      };
+      return updated;
+    });
+    
+    addRecordLog(`第 ${originalIndex + 1} 行：已替换 icon 为 ${selectedProp.displayName}`);
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 min-h-0 flex-1 overflow-hidden relative">
       <input
@@ -180,6 +213,8 @@ export default function Tab2Record(props: Tab2RecordProps) {
         onNavigate={navigateReviewRow}
         onConfirm={handleReviewConfirm}
         onReturn={handleReviewReturn}
+        tab1PropsList={tab1PropsList}
+        onReplaceIcon={handleReplaceIcon}
       />
 
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">

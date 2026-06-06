@@ -485,6 +485,7 @@ export default function App() {
                   updateProgress={updateProgress}
                   selectedPart={selectedRecordPart}
                   setSelectedPart={setSelectedRecordPart}
+                  tab1PropsList={propsList}
                 />
               </motion.div>
             ) : activeTab === 'tab3' ? (

@@ -329,23 +329,6 @@ export default function Tab1Inbound({
             />
           </div>
         </div>
-
-        {/* Icon库说明 */}
-        <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent">
-          <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-            <div className="text-xs text-blue-800 font-semibold mb-1">
-              📦 Icon库管理中心
-            </div>
-            <div className="text-[10px] text-blue-700 leading-relaxed">
-              此处的icon会自动作为Tab2的识别库。在Tab2上传截图后，AI会从这里的icon中匹配。
-            </div>
-            {totalCount > 0 && (
-              <div className="mt-2 text-xs text-blue-900 font-bold">
-                ✓ 当前库存: {totalCount} 个icon
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Log Sidebar Component */}
