@@ -48,10 +48,10 @@ export function RulesToolbar({
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={onShowDocs}
-          className="px-3 py-1.5 bg-[#7B68EE] hover:bg-[#6A5ACD] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all"
+          className="px-3 py-1.2 bg-gradient-to-r from-[#FCF5EA] to-[#FAF0E0] hover:from-[#FAF0E0] hover:to-[#EFE2D0] text-[#A67020] border border-[#EFE2D0] rounded-lg text-xs font-bold tracking-wider hover:shadow-xs transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center gap-1.5 select-none leading-normal"
           title="查看完整解析规则文档"
         >
-          <HelpCircle size={12} />
+          <HelpCircle size={13} className="text-[#A67020]" />
           规则文档
         </button>
 
