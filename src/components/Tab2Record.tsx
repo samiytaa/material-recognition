@@ -794,6 +794,7 @@ export default function Tab2Record({
             screenshots={uploadedScreenshots}
             onDelete={deleteScreenshot}
             onClearAll={clearAllScreenshots}
+            onUpload={handleBatchImageUpload}
           />
         </div>
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Trash2, ZoomIn } from 'lucide-react';
+import { Card, UploadZone } from '../common';
 
 interface Screenshot {
   id: number;
@@ -11,6 +12,7 @@ interface ScreenshotListProps {
   screenshots: Screenshot[];
   onDelete: (id: number) => void;
   onClearAll?: () => void;
+  onUpload?: (files: FileList) => void;
 }
 
 // 放大预览弹窗组件
@@ -53,10 +55,9 @@ export default function ScreenshotList({
   screenshots,
   onDelete,
   onClearAll,
+  onUpload,
 }: ScreenshotListProps) {
   const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
-
-  if (screenshots.length === 0) return null;
 
   const handleClearAll = () => {
     if (confirm(`确定要清空所有 ${screenshots.length} 张待处理截图吗？`)) {
@@ -66,6 +67,19 @@ export default function ScreenshotList({
 
   return (
     <>
+      {/* 上传区域 */}
+      {onUpload && (
+        <Card className="overflow-hidden flex-shrink-0" padding="none">
+          <UploadZone
+            onFilesSelected={onUpload}
+            text="支持拖入游戏截图"
+            subText={screenshots.length > 0 ? `已上传 ${screenshots.length} 张截图` : '或点击窗口选择图片文件'}
+          />
+        </Card>
+      )}
+
+      {/* 截图列表 */}
+      {screenshots.length > 0 && (
       <div className="bg-white border border-[#DFD2BD]/60 rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="px-3 py-2 bg-[#FAF8F4] border-b border-[#E9DFDB] flex items-center justify-between flex-shrink-0">
           <h3 className="text-xs font-bold text-[#674b2d]">
@@ -129,6 +143,7 @@ export default function ScreenshotList({
           </div>
         </div>
       </div>
+      )}
       
       {/* 放大预览弹窗 */}
       {zoomImage && (
