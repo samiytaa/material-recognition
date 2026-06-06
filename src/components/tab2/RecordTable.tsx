@@ -83,14 +83,8 @@ export default function RecordTable({
           <th className="w-[90px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             底色
           </th>
-          <th className="w-[80px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            类型
-          </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             分类
-          </th>
-          <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            相关
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             加底预览

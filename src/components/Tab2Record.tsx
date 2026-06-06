@@ -617,7 +617,7 @@ export default function Tab2Record({
                 propName: match.name,
                 baseColor: match.color,
                 // 保持原有的类型、分类、相关字段不变（从Tab1导入）
-                outputName: `${match.name}_${match.color}`
+                outputName: match.name
               };
             }
           }

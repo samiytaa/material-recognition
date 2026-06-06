@@ -36,7 +36,13 @@ export default function App() {
     try {
       const savedRecordList = localStorage.getItem('tab2_recordList');
       if (savedRecordList) {
-        return JSON.parse(savedRecordList);
+        const parsed = JSON.parse(savedRecordList);
+        // 数据迁移：去掉 outputName 中的底色后缀（如 "道具名_金" -> "道具名"）
+        const migrated = parsed.map((row: RecordRow) => ({
+          ...row,
+          outputName: row.propName || row.outputName
+        }));
+        return migrated;
       }
     } catch (error) {
       console.error('加载Tab2记录列表失败:', error);
@@ -458,7 +464,7 @@ export default function App() {
                         propCategory: img.propCategory, // 分类（从Tab1同步）
                         propRelated: img.propRelated, // 相关角色（男主-XXX / 密探-XXX / 无）
                         previewWithBase: null,
-                        outputName: `${img.name}_金`
+                        outputName: img.name
                       }));
                       return [...prev, ...newRows];
                     });

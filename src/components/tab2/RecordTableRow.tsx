@@ -1,6 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import { Undo2, ZoomIn, X } from 'lucide-react';
 import { RecordRow } from '../../types';
+import categoryConfig from '../../categoryConfig.json';
+
+// 从分类名提取一级分类
+function getPrimaryCategory(categoryName: string): string {
+  const config = categoryConfig as any;
+  const nonFurniture = config['除家具以外的道具'];
+  
+  if (nonFurniture) {
+    // 遍历一级分类（男主类、密探类、头像类、活动类、其他类）
+    for (const [primaryCat, items] of Object.entries(nonFurniture)) {
+      if (Array.isArray(items) && items.includes(categoryName)) {
+        return primaryCat;
+      }
+    }
+  }
+  
+  // 家具类统一返回"家具"
+  const furniture = config['家具'];
+  if (furniture) {
+    // 检查套装
+    if (Array.isArray(furniture['套装']) && furniture['套装'].includes(categoryName)) {
+      return '家具';
+    }
+    // 检查自由装修
+    const free = furniture['自由装修'];
+    if (free) {
+      if (categoryName === '衬景') return '家具';
+      for (const [subCat, items] of Object.entries(free)) {
+        if (Array.isArray(items) && items.includes(categoryName)) {
+          return '家具';
+        }
+      }
+    }
+  }
+  
+  // 兜底返回原分类名
+  return categoryName;
+}
 
 interface RecordTableRowProps {
   row: RecordRow;
@@ -254,7 +292,7 @@ export default function RecordTableRow({
               const val = e.target.value;
               onUpdateRow(rowIndex, {
                 propName: val,
-                outputName: val ? `${val}_${row.baseColor}` : ''
+                outputName: val
               });
             }}
             placeholder="双击修改道具名"
@@ -269,8 +307,7 @@ export default function RecordTableRow({
             onChange={(e) => {
               const val = e.target.value;
               onUpdateRow(rowIndex, {
-                baseColor: val,
-                outputName: row.propName ? `${row.propName}_${val}` : ''
+                baseColor: val
               });
             }}
             className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
@@ -281,24 +318,10 @@ export default function RecordTableRow({
           </select>
         </td>
 
-        {/* 类型（从Tab1同步，不可修改） */}
+        {/* 分类（从Tab1同步，不可修改，只显示一级分类） */}
         <td className="p-2 border border-[#F2ECE5]">
           <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
-            {row.propType || '未知'}
-          </div>
-        </td>
-
-        {/* 分类（从Tab1同步，不可修改） */}
-        <td className="p-2 border border-[#F2ECE5]">
-          <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
-            {row.propCategory || '未知'}
-          </div>
-        </td>
-
-        {/* 相关（从Tab1同步，不可修改） */}
-        <td className="p-2 border border-[#F2ECE5]">
-          <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
-            {row.propRelated || '无'}
+            {getPrimaryCategory(row.propCategory || '未知')}
           </div>
         </td>
 
