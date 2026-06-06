@@ -67,7 +67,8 @@ export default function Tab2Record({
     total: 0,
     successCount: 0,
     failCount: 0,
-    currentProcessing: ''
+    currentProcessing: '',
+    logs: [] as string[]
   });
   
   // 选中行管理（使用 row.id 而不是索引）
@@ -504,7 +505,8 @@ export default function Tab2Record({
         total: uploadedScreenshots.length,
         successCount: 0,
         failCount: 0,
-        currentProcessing: '准备中...'
+        currentProcessing: '准备中...',
+        logs: []
       });
 
       // 导入识别函数
@@ -517,15 +519,28 @@ export default function Tab2Record({
       let successCount = 0;
       let failCount = 0;
 
+      // 进度日志（最多保留最近20条）
+      const progressLogs: string[] = [];
+      const addProgressLog = (msg: string) => {
+        progressLogs.push(msg);
+        if (progressLogs.length > 20) {
+          progressLogs.shift();
+        }
+      };
+
       // 更新进度的辅助函数
-      const updateRecognitionProgress = (current: number, success: number, fail: number, processing: string) => {
+      const updateRecognitionProgress = (current: number, success: number, fail: number, processing: string, log?: string) => {
+        if (log) {
+          addProgressLog(log);
+        }
         setRecognitionProgress({
           isOpen: true,
           current,
           total: uploadedScreenshots.length,
           successCount: success,
           failCount: fail,
-          currentProcessing: processing
+          currentProcessing: processing,
+          logs: [...progressLogs]
         });
         updateProgress(current, uploadedScreenshots.length);
       };
@@ -534,7 +549,8 @@ export default function Tab2Record({
       for (let index = 0; index < uploadedScreenshots.length; index++) {
         const screenshot = uploadedScreenshots[index];
         
-        updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+        // 开始处理时进度还是之前的值
+        updateRecognitionProgress(index, successCount, failCount, `正在处理: ${screenshot.name}`, `[${index + 1}/${uploadedScreenshots.length}] 开始处理 ${screenshot.name}`);
         addRecordLog(`[处理] 开始处理截图 ${index + 1}/${uploadedScreenshots.length}: ${screenshot.name}`);
 
         try {
@@ -546,7 +562,7 @@ export default function Tab2Record({
             addRecordLog(`[处理] ✗ ${screenshot.name}: 所有icon已被使用`);
             failedList.push(`${screenshot.name} (原因: 无可用icon)`);
             failCount++;
-            updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+            updateRecognitionProgress(index + 1, successCount, failCount, `已完成: ${screenshot.name}`, `✗ ${screenshot.name}: 无可用icon`);
             continue;
           }
 
@@ -580,7 +596,7 @@ export default function Tab2Record({
               addRecordLog(`[处理] ✗ ${screenshot.name}: API返回的索引越界 (${result.iconIndex}/${availableIconLibrary.length})`);
               failedList.push(`${screenshot.name} (原因: API返回索引无效)`);
               failCount++;
-              updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
+              updateRecognitionProgress(index + 1, successCount, failCount, `已完成: ${screenshot.name}`, `✗ ${screenshot.name}: 索引无效`);
               continue;
             }
             
@@ -611,20 +627,21 @@ export default function Tab2Record({
 
             successCount++;
             addRecordLog(`[处理] ✓ ${screenshot.name}: 匹配到第${matchedRowIndex + 1}行 (${matchedIcon.propName}) - ${result.name} - ${result.color} - ${detectedCategory}`);
+            updateRecognitionProgress(index + 1, successCount, failCount, `已完成: ${screenshot.name}`, `✓ ${screenshot.name} → ${result.name} (${result.color})`);
           } else {
             // 识别失败
             failedList.push(`${screenshot.name} (原因: ${result.error || '未知错误'})`);
             failCount++;
             addRecordLog(`[处理] ✗ ${screenshot.name}: ${result.error || '识别失败'}`);
+            updateRecognitionProgress(index + 1, successCount, failCount, `已完成: ${screenshot.name}`, `✗ ${screenshot.name}: ${result.error || '识别失败'}`);
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           failedList.push(`${screenshot.name} (原因: ${errorMsg})`);
           failCount++;
           addRecordLog(`[处理] ✗ ${screenshot.name}: 异常 - ${errorMsg}`);
+          updateRecognitionProgress(index + 1, successCount, failCount, `已完成: ${screenshot.name}`, `✗ ${screenshot.name}: 异常`);
         }
-
-        updateRecognitionProgress(index + 1, successCount, failCount, screenshot.name);
       }
 
       // 保存原始截图数组的引用（避免闭包问题）
@@ -663,7 +680,8 @@ export default function Tab2Record({
         total: 0,
         successCount: 0,
         failCount: 0,
-        currentProcessing: ''
+        currentProcessing: '',
+        logs: []
       });
       
       hideProgressBar();
@@ -928,6 +946,7 @@ export default function Tab2Record({
         successCount={recognitionProgress.successCount}
         failCount={recognitionProgress.failCount}
         currentProcessing={recognitionProgress.currentProcessing}
+        logs={recognitionProgress.logs}
       />
 
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">
