@@ -171,8 +171,11 @@ export default function Tab3Settings() {
   const [renameInputName, setRenameInputName] = useState('');
   const [deletingCategory, setDeletingCategory] = useState<CategoryRow | null>(null);
 
-  // --- STATE FOR DRAG REORDERING ---
+  // --- STATE FOR DRAG REORDERING (CATEGORIES) ---
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // --- STATE FOR DRAG REORDERING (BASEMAPS) ---
+  const [draggedBasemap, setDraggedBasemap] = useState<{ groupIndex: number; itemIndex: number } | null>(null);
 
   // --- NOTIFICATION FEEDBACK ---
   const [notice, setNotice] = useState<string | null>(null);
@@ -368,6 +371,46 @@ export default function Tab3Settings() {
     triggerNotice('已调整分类排布序列');
   };
 
+  // --- BASEMAP DRAG AND DROP HANDLERS ---
+  const handleBasemapDragStart = (e: React.DragEvent, groupIndex: number, itemIndex: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedBasemap({ groupIndex, itemIndex });
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleBasemapDragOver = (e: React.DragEvent, groupIndex: number, itemIndex: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    if (!draggedBasemap) return;
+    if (draggedBasemap.groupIndex !== groupIndex) return; // 只允许在同一组内拖拽
+    if (draggedBasemap.itemIndex === itemIndex) return;
+
+    // 重新排序缩略图
+    setGroups(prev => {
+      const cloned = [...prev];
+      const thumbnails = [...cloned[groupIndex].thumbnails];
+      const [movedItem] = thumbnails.splice(draggedBasemap.itemIndex, 1);
+      thumbnails.splice(itemIndex, 0, movedItem);
+      cloned[groupIndex] = { ...cloned[groupIndex], thumbnails };
+      return cloned;
+    });
+
+    setDraggedBasemap({ groupIndex, itemIndex });
+  };
+
+  const handleBasemapDragEnd = (e: React.DragEvent) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+    if (draggedBasemap) {
+      triggerNotice('底图顺序已调整');
+    }
+    setDraggedBasemap(null);
+  };
+
   return (
     <div id="tab3-container" className="flex-1 flex flex-col min-h-0 bg-transparent text-[#443B43] scrollbar-thin overflow-y-auto space-y-6 pb-2">
       
@@ -449,14 +492,18 @@ export default function Tab3Settings() {
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.8 }}
-                        className="group relative flex flex-col items-center select-none"
+                        className="group relative flex flex-col items-center select-none cursor-move"
+                        draggable
+                        onDragStart={(e) => handleBasemapDragStart(e, groupIdx, fileIdx)}
+                        onDragOver={(e) => handleBasemapDragOver(e, groupIdx, fileIdx)}
+                        onDragEnd={handleBasemapDragEnd}
                       >
                         {/* Compact thumbnail */}
                         <div className="w-14 h-14 rounded-xl border-2 border-[#E5DEC4] hover:border-[#D4A574] overflow-hidden bg-white shadow-sm hover:shadow-md flex items-center justify-center p-1 transition-all">
                           <img
                             src={item.image}
                             alt="预览"
-                            className="w-full h-full object-contain rounded-lg"
+                            className="w-full h-full object-contain rounded-lg pointer-events-none"
                             referrerPolicy="no-referrer"
                           />
                         </div>
