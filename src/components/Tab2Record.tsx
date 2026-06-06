@@ -54,7 +54,9 @@ export default function Tab2Record(props: Tab2RecordProps) {
     handleBatchConfirmSelected,
     runAiMatch,
     exportBatchFiles,
+    exportConfirmedAndRemoveRows,
     exportReadyCount,
+    confirmedExportReadyCount,
     matchedCount,
     unMatchedCount,
     pendingRecognitionCount,
@@ -256,12 +258,14 @@ export default function Tab2Record(props: Tab2RecordProps) {
         selectedScreenshotCategory={selectedScreenshotCategory}
         pendingRecognitionCount={pendingRecognitionCount}
         exportReadyCount={exportReadyCount}
+        confirmedExportReadyCount={confirmedExportReadyCount}
         canReview={selectedRowIds.length > 0}
         onScreenshotCategoryChange={setSelectedScreenshotCategory}
         onBatchScreenshotUpload={handleBatchScreenshotUpload}
         onRunAiMatch={runAiMatch}
         onOpenReview={openReviewModal}
         onExport={() => setExportModeModalOpen(true)}
+        onExportConfirmedAndRemove={exportConfirmedAndRemoveRows}
       />
 
       <LogSidebar

@@ -1,24 +1,28 @@
 import React from 'react';
-import { Sparkles, Download, ScanSearch } from 'lucide-react';
+import { Sparkles, Download, ScanSearch, PackageCheck } from 'lucide-react';
 
 interface ActionButtonsProps {
   uploadedScreenshotsCount: number;
   exportReadyCount: number;
+  confirmedExportReadyCount: number;
   iconLibraryCount: number;
   canReview: boolean;
   onRunAiMatch: () => void;
   onOpenReview: () => void;
   onExport: () => void;
+  onExportConfirmedAndRemove: () => void;
 }
 
 export default function ActionButtons({
   uploadedScreenshotsCount,
   exportReadyCount,
+  confirmedExportReadyCount,
   iconLibraryCount,
   canReview,
   onRunAiMatch,
   onOpenReview,
-  onExport
+  onExport,
+  onExportConfirmedAndRemove
 }: ActionButtonsProps) {
   return (
     <div className="save-button-area border-t border-gold-medium/30 pt-3 bg-transparent flex-shrink-0">
@@ -64,6 +68,19 @@ export default function ActionButtons({
           导出
         </button>
       </div>
+      <button
+        onClick={onExportConfirmedAndRemove}
+        disabled={confirmedExportReadyCount === 0}
+        className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-center text-xs font-bold uppercase tracking-widest shadow transition-all duration-200 ${
+          confirmedExportReadyCount > 0
+            ? 'bg-gradient-to-r from-[#166534] to-[#15803D] text-white hover:-translate-y-0.5 hover:to-[#166534] hover:shadow-md active:translate-y-0'
+            : 'cursor-not-allowed border border-[#DFD2BD] bg-[#EDE9E3] text-[#AFA498] shadow-none'
+        }`}
+        title={confirmedExportReadyCount > 0 ? `下载 ${confirmedExportReadyCount} 张已确认合成图片并移除对应条目` : '没有可下载并移除的已确认合成图片'}
+      >
+        <PackageCheck size={16} />
+        下载已确认并移除
+      </button>
     </div>
   );
 }

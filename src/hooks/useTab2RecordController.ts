@@ -893,17 +893,7 @@ export function useTab2RecordController({
   // 导出批量文件
   const exportBatchFiles = async (mode: 'all' | 'confirmed') => {
     const stats = getExportStats(recordList);
-    const confirmedPropNames = new Set(
-      propsList
-        .filter(prop => prop.image && (prop.tags || []).includes('已确认'))
-        .map(prop => prop.name)
-    );
-    const exportRows = mode === 'confirmed'
-      ? stats.exportRows.filter(row => {
-          const matchedName = row.matchedPropFileName || row.originalImageFileName;
-          return matchedName ? confirmedPropNames.has(matchedName) : false;
-        })
-      : stats.exportRows;
+    const exportRows = mode === 'confirmed' ? getConfirmedExportRows() : stats.exportRows;
     const modeLabel = mode === 'confirmed' ? '仅下载已确认' : '全部下载';
 
     addRecordLog(`========== 导出检查 ==========`);
@@ -940,6 +930,33 @@ export function useTab2RecordController({
     }
 
     addRecordLog(`开始导出，共 ${exportRows.length} 条数据...`);
+    const result = await downloadExportRows(exportRows, '加底图片导出');
+
+    if (result.success) {
+      setTimeout(() => {
+        closeExportProgress();
+        alert(`导出完成！\n\n成功: ${result.successCount}\n失败: ${result.failCount}\n\n文件已保存为: ${result.fileName}`);
+      }, 1000);
+    }
+  };
+
+  const getConfirmedExportRows = () => {
+    const confirmedPropNames = new Set(
+      propsList
+        .filter(prop => prop.image && (prop.tags || []).includes('已确认'))
+        .map(prop => prop.name)
+    );
+
+    return getExportStats(recordList).exportRows.filter(row => {
+      const matchedName = row.matchedPropFileName || row.originalImageFileName;
+      return matchedName ? confirmedPropNames.has(matchedName) : false;
+    });
+  };
+
+  const downloadExportRows = async (
+    exportRows: RecordRow[],
+    filePrefix: string
+  ): Promise<{ success: boolean; successCount: number; failCount: number; fileName?: string }> => {
     openExportProgress(exportRows.length);
 
     try {
@@ -983,27 +1000,59 @@ export function useTab2RecordController({
 
       const blob = await zip.generateAsync({ type: 'blob' });
       const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const fileName = `加底图片导出_${timestamp}.zip`;
+      const fileName = `${filePrefix}_${timestamp}.zip`;
       saveAs(blob, fileName);
 
       addRecordLog(`✓ 导出完成！共 ${successCount} 个文件已打包为ZIP`);
-
-      setTimeout(() => {
-        closeExportProgress();
-        alert(`导出完成！\n\n成功: ${successCount}\n失败: ${failCount}\n\n文件已保存为: ${fileName}`);
-      }, 1000);
+      return { success: true, successCount, failCount, fileName };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '未知错误';
       addRecordLog(`✗ 导出失败：${errorMsg}`);
       closeExportProgress();
       alert(`导出失败：${errorMsg}`);
+      return { success: false, successCount: 0, failCount: exportRows.length };
     }
+  };
+
+  const exportConfirmedAndRemoveRows = async () => {
+    const exportRows = getConfirmedExportRows();
+
+    if (exportRows.length === 0) {
+      alert('当前没有可下载并移除的已确认合成图片。\n\n请确认条目已标记为「已确认」，且已有加底预览图和输出名称。');
+      addRecordLog('下载并移除失败：没有可处理的已确认合成图片');
+      return;
+    }
+
+    addRecordLog(`开始下载并移除已确认条目，共 ${exportRows.length} 条...`);
+    const result = await downloadExportRows(exportRows, '已确认合成图片');
+    if (!result.success) return;
+
+    const exportedIds = new Set(exportRows.map(row => row.id));
+    setRecordList(prev => prev.filter(row => !exportedIds.has(row.id)));
+
+    exportRows
+      .filter(row => row.screenshot)
+      .forEach(row => {
+        deleteTab2Screenshot(row.id).catch(error => {
+          addRecordLog(`⚠ 条目 ${row.outputName || row.propName || row.id} 截图记忆删除失败: ${error}`);
+        });
+      });
+
+    if (selectedPart && exportedIds.has(recordList[selectedPart.rowId]?.id)) {
+      setSelectedPart(null);
+    }
+
+    clearSelection();
+    closeExportProgress();
+    addRecordLog(`✓ 已下载并移除 ${exportRows.length} 个已确认条目`);
+    alert(`处理完成！\n\n已下载: ${result.successCount}\n打包失败: ${result.failCount}\n已移除条目: ${exportRows.length}\n\n文件已保存为: ${result.fileName}`);
   };
 
   // 统计信息
   const exportReadyCount = recordList.filter(
     row => row.previewWithBase && row.outputName.trim() !== ''
   ).length;
+  const confirmedExportReadyCount = getConfirmedExportRows().length;
 
   const matchedCount = recordList.filter(r => r.originalImage !== null).length;
   const unMatchedCount = recordList.length - matchedCount;
@@ -1047,7 +1096,9 @@ export function useTab2RecordController({
     handleBatchConfirmSelected,
     runAiMatch,
     exportBatchFiles,
+    exportConfirmedAndRemoveRows,
     exportReadyCount,
+    confirmedExportReadyCount,
     matchedCount,
     unMatchedCount,
     pendingRecognitionCount,
