@@ -31,6 +31,8 @@ interface IconCandidate {
   id: string;
   name: string;
   base64: string;
+  propName?: string;
+  category?: string;
 }
 
 const VALID_COLORS = ['金', '紫', '蓝', '绿', '咖'];
@@ -319,45 +321,59 @@ export async function runDirectVisionMatching(
       const batchTask = async () => {
         onLog(`[批次 ${batchIndex + 1}/${totalBatches}] 开始比较 icon ${startIdx} 到 ${endIdx - 1}，共 ${iconsToCompare.length} 个`);
 
-        const directMatchingPrompt = `你是一个视觉比较专家。现在你会看到多张图片：
+        const directMatchingPrompt = `你是专业的游戏道具icon识别专家。你将看到多张图片：
 
-第1张图片：游戏截图，包含一个带彩色圆形底色的icon
-第2张图片及之后：透明背景的候选icon，编号从 icon_0 到 icon_${iconsToCompare.length - 1}
+**图片说明：**
+- 第1张：游戏截图，包含一个带彩色圆形底色的道具icon
+- 第2张及之后：透明背景的候选icon（编号 icon_0 到 icon_${iconsToCompare.length - 1}）
 
-候选icon清单：
+**候选icon清单：**
 ${JSON.stringify(iconsToCompare.map((icon, idx) => ({
   id: `icon_${idx}`,
   filename: icon.name,
-  index: idx
+  index: idx,
+  propName: icon.propName || '未命名',
+  category: icon.category || '未分类'
 })), null, 2)}
 
-你的任务分为两部分：
+**识别任务（按优先级执行）：**
 
-**第一部分：分析游戏截图**
-1. 识别目标icon的圆形底色（必须是以下之一：金、紫、蓝、绿、咖）
-2. 提取物品/角色的核心名称（如'心纸【孙辅】'、'头像框【菌子不器】'等，不包含描述文字）
-3. 注意区分icon圆形底色与页面背景
+1. **底色识别（必选其一）**
+   - 聚焦截图中icon的圆形底色区域
+   - 忽略页面背景、边框、文字等干扰元素
+   - 严格从以下5种颜色中选择：金、紫、蓝、绿、咖
+   - 颜色特征参考：
+     * 金：金黄色、橙黄色、琥珀色
+     * 紫：紫色、紫红色、洋红色
+     * 蓝：蓝色、青蓝色、天蓝色
+     * 绿：绿色、青绿色、翠绿色
+     * 咖：咖啡色、棕色、褐色
 
-**第二部分：视觉比较匹配**
-1. 仔细观察第1张截图中的icon图案（忽略圆形底色）
-2. 逐一比较后续的透明背景候选icon
-3. 找出与截图中icon图案最相似的那个候选icon
+2. **名称提取（完整准确）**
+   - 读取截图中显示的完整道具名称
+   - 保留所有特殊符号（如【】、·等）
+   - 示例格式：'心纸【孙辅】'、'头像框【菌子不器】'、'日华浮绢·叁'
+   - 不要省略或改写任何部分
 
-比较重点：
-- 轮廓形状
-- 主体图案
-- 颜色分布
-- 细节特征
-- 整体结构
+3. **视觉匹配（精确比对）**
+   - 比对重点：
+     * 核心图案结构（轮廓、形状）
+     * 主体元素特征（人物、物品、符号）
+     * 色彩分布模式
+     * 细节装饰元素
+   - 辅助判断：
+     * 参考propName与截图名称的相似度
+     * 利用category排除不相关类型
+   - 逐一对比所有候选icon，选择最相似的一个
 
-请输出严格JSON格式（不要输出Markdown代码块）：
+**输出要求（纯JSON，无Markdown）：**
 {
-  "icon_circle_background_color": "底色（金/紫/蓝/绿/咖之一）",
-  "item_name": "物品核心名称",
-  "best_match_index": 最佳匹配的索引数字（0到${iconsToCompare.length - 1}）,
-  "best_icon_filename": "最佳匹配的文件名",
-  "confidence": 0.0到1.0之间的置信度,
-  "reason": "为什么选择这个icon的理由，说明相似之处"
+  "icon_circle_background_color": "金|紫|蓝|绿|咖",
+  "item_name": "完整道具名称（与截图中显示完全一致）",
+  "best_match_index": 索引数字（0-${iconsToCompare.length - 1}）,
+  "best_icon_filename": "匹配的文件名",
+  "confidence": 置信度（0.0-1.0），
+  "reason": "选择理由（说明关键相似点）"
 }`;
 
         try {
@@ -479,26 +495,38 @@ ${JSON.stringify(iconsToCompare.map((icon, idx) => ({
       
       onLog(`[最终比较] 从 ${allBatchCandidates.length} 个候选中选出前 ${topCandidates.length} 个`);
 
-      const finalPrompt = `你是一个视觉比较专家。这是最终选择阶段。
+      const finalPrompt = `你是专业的游戏道具icon识别专家，现在进行最终精确匹配。
 
-第1张图片：游戏截图
-第2张图片及之后：从各批次筛选出的最优候选icon
+**图片说明：**
+- 第1张：目标游戏截图
+- 第2张及之后：从各批次筛选出的最优候选icon（共${topIcons.length}个）
 
-候选清单（已按前期置信度排序）：
+**候选清单（按前期置信度排序）：**
 ${JSON.stringify(topIcons.map((icon, idx) => ({
   id: `icon_${idx}`,
   filename: icon.name,
   index: idx,
+  propName: icon.propName || '未命名',
+  category: icon.category || '未分类',
   previous_confidence: topCandidates[idx].confidence
 })), null, 2)}
 
-请从这些候选中选出与截图中icon最相似的那个。
+**最终匹配任务：**
+1. 仔细对比截图中icon的核心图案与每个候选icon
+2. 重点关注：
+   - 主体元素的形状和结构
+   - 关键细节的匹配程度
+   - 整体风格的一致性
+3. 综合考虑：
+   - 视觉相似度（权重60%）
+   - propName关联性（权重30%）
+   - previous_confidence参考（权重10%）
 
-输出JSON格式：
+**输出JSON格式：**
 {
-  "best_match_index": 最终选择的索引（0到${topIcons.length - 1}）,
-  "confidence": 0.0到1.0,
-  "reason": "最终选择理由"
+  "best_match_index": 最终索引（0-${topIcons.length - 1}）,
+  "confidence": 置信度（0.0-1.0）,
+  "reason": "最终选择理由（简明扼要）"
 }`;
 
       const finalReply = await callVisionApi(
