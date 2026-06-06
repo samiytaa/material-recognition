@@ -120,7 +120,7 @@ export default function RecordTableRow({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
 
-  // 当原图、底色或底图组改变时，自动生成预览
+  // 当原图、底色或底图组改变时，自动生成预览并更新到row.previewWithBase
   useEffect(() => {
     if (!row.originalImage || !row.baseColor || !selectedGroupId) {
       setPreviewUrl(null);
@@ -151,18 +151,33 @@ export default function RecordTableRow({
       // 加载并绘制原图
       const propImg = new Image();
       propImg.onload = () => {
-        // 将原图居中绘制在底图上
-        const scale = Math.min(canvas.width / propImg.width, canvas.height / propImg.height) * 0.8;
-        const scaledWidth = propImg.width * scale;
-        const scaledHeight = propImg.height * scale;
-        const x = (canvas.width - scaledWidth) / 2;
-        const y = (canvas.height - scaledHeight) / 2;
+        // 使用Contain等比缩放模式（与加底按钮保持一致）
+        const targetWidth = canvas.width;
+        const targetHeight = canvas.height;
+        const sourceWidth = propImg.width;
+        const sourceHeight = propImg.height;
+        
+        // 计算缩放系数：min(目标宽/源宽, 目标高/源高)
+        const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+        
+        // 缩放后的尺寸
+        const scaledWidth = sourceWidth * scale;
+        const scaledHeight = sourceHeight * scale;
+        
+        // 中心锚点居中定位
+        const x = (targetWidth - scaledWidth) / 2;
+        const y = (targetHeight - scaledHeight) / 2;
 
         ctx!.drawImage(propImg, x, y, scaledWidth, scaledHeight);
 
         // 导出合成结果
         const compositeDataUrl = canvas.toDataURL('image/png');
         setPreviewUrl(compositeDataUrl);
+        
+        // 同步更新到row.previewWithBase，确保导出时使用的是当前预览效果
+        if (onUpdateRow) {
+          onUpdateRow(rowIndex, { previewWithBase: compositeDataUrl });
+        }
       };
       propImg.onerror = () => {
         setPreviewUrl(row.originalImage); // 加载失败，使用原图
@@ -173,7 +188,7 @@ export default function RecordTableRow({
       setPreviewUrl(row.originalImage); // 加载失败，使用原图
     };
     baseImg.src = basemapItem.image;
-  }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups]);
+  }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups, rowIndex, onUpdateRow]);
 
   return (
     <>
