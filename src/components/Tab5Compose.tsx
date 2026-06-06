@@ -135,6 +135,26 @@ export default function Tab5Compose() {
       localStorage.setItem('tab5_batchSize', '5');
     }
 
+    // 监听Tab3底图组数据变化
+    const syncBaseMapGroups = () => {
+      const saved = localStorage.getItem('tab3_groups');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setBaseMapGroups(parsed);
+          addLog('已同步Tab3底图组数据');
+        } catch (e) {
+          console.error('同步底图组失败:', e);
+        }
+      }
+    };
+
+    // 初始同步
+    syncBaseMapGroups();
+
+    // 监听storage事件（跨标签页同步）
+    window.addEventListener('storage', syncBaseMapGroups);
+
     // 添加隐藏滚动条的样式
     const style = document.createElement('style');
     style.textContent = `
@@ -145,6 +165,7 @@ export default function Tab5Compose() {
     document.head.appendChild(style);
     return () => {
       document.head.removeChild(style);
+      window.removeEventListener('storage', syncBaseMapGroups);
     };
   }, []);
 
@@ -356,7 +377,7 @@ export default function Tab5Compose() {
       };
       iconImg.src = `data:image/png;base64,${icon.base64}`;
     };
-    baseImg.src = baseMap.src;
+    baseImg.src = baseMap.image;
   };
 
   // 刷新合成
@@ -552,7 +573,7 @@ export default function Tab5Compose() {
             <div className="flex flex-wrap gap-3">
               {baseMaps.map(baseMap => (
                 <div
-                  key={baseMap.color}
+                  key={baseMap.id}
                   onClick={() => setSelectedBaseMapColor(baseMap.color)}
                   className={`bg-white rounded-xl p-3 border text-center w-16 transition-all cursor-pointer ${selectedBaseMapColor === baseMap.color
                       ? 'border-2 border-[#1a73e8] bg-[#e8f0fe] shadow-md'
@@ -560,7 +581,7 @@ export default function Tab5Compose() {
                     }`}
                 >
                   <img
-                    src={baseMap.src}
+                    src={baseMap.image}
                     alt={baseMap.color}
                     className="w-12 h-12 object-contain rounded-lg mx-auto bg-[#EEF2F5] shadow-sm"
                   />

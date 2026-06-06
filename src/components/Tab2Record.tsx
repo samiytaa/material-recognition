@@ -131,19 +131,57 @@ export default function Tab2Record({
   
   // 从localStorage加载底图组配置
   useEffect(() => {
-    const saved = localStorage.getItem('tab3_groups');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setBasemapGroups(parsed);
-        if (parsed.length > 0) {
-          setSelectedGroupId(parsed[0].id);
+    const loadBasemapGroups = () => {
+      const saved = localStorage.getItem('tab3_groups');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setBasemapGroups(parsed);
+          if (parsed.length > 0 && !selectedGroupId) {
+            setSelectedGroupId(parsed[0].id);
+          }
+        } catch (e) {
+          console.error('加载底图组配置失败:', e);
         }
-      } catch (e) {
-        console.error('加载底图组配置失败:', e);
       }
-    }
-  }, []);
+    };
+    
+    // 初始加载
+    loadBasemapGroups();
+    
+    // 监听 storage 事件（跨标签页同步）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tab3_groups') {
+        loadBasemapGroups();
+        addRecordLog('✓ 检测到底图配置更新，已重新加载');
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 定期检查配置变化（用于同一标签页内的更新）
+    const intervalId = setInterval(() => {
+      const saved = localStorage.getItem('tab3_groups');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const currentStr = JSON.stringify(basemapGroups);
+          const newStr = JSON.stringify(parsed);
+          if (currentStr !== newStr) {
+            setBasemapGroups(parsed);
+            addRecordLog('✓ 检测到底图配置更新，已重新加载');
+          }
+        } catch (e) {
+          // 忽略解析错误
+        }
+      }
+    }, 2000); // 每2秒检查一次
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(intervalId);
+    };
+  }, [basemapGroups, selectedGroupId]);
   
   // 当选择的底图组变化时，更新可用底色列表
   useEffect(() => {
