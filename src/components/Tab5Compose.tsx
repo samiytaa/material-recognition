@@ -23,6 +23,12 @@ interface BaseMapItem {
   src: string;
 }
 
+interface BaseMapGroup {
+  id: string;
+  name: string;
+  maps: BaseMapItem[];
+}
+
 export default function Tab5Compose() {
   // 截图状态
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
@@ -33,14 +39,32 @@ export default function Tab5Compose() {
   const [selectedIconId, setSelectedIconId] = useState<string | null>(null);
 
   // 底图状态
-  const [baseMaps] = useState<BaseMapItem[]>([
-    { color: '金', name: 'prop-gold.png', src: propGold },
-    { color: '紫', name: 'prop-purple.png', src: propPurple },
-    { color: '蓝', name: 'prop-blue.png', src: propBlue },
-    { color: '绿', name: 'prop-green.png', src: propGreen },
-    { color: '咖', name: 'prop-brown.png', src: propBrown }
+  const [baseMapGroups] = useState<BaseMapGroup[]>([
+    {
+      id: 'default',
+      name: '默认底图组',
+      maps: [
+        { color: '金', name: 'prop-gold.png', src: propGold },
+        { color: '紫', name: 'prop-purple.png', src: propPurple },
+        { color: '蓝', name: 'prop-blue.png', src: propBlue },
+        { color: '绿', name: 'prop-green.png', src: propGreen },
+        { color: '咖', name: 'prop-brown.png', src: propBrown }
+      ]
+    }
+    // 可以在这里添加更多底图组
+    // {
+    //   id: 'group2',
+    //   name: '底图组2',
+    //   maps: [...]
+    // }
   ]);
+  
+  const [selectedBaseMapGroupId, setSelectedBaseMapGroupId] = useState<string>('default');
   const [selectedBaseMapColor, setSelectedBaseMapColor] = useState<string | null>(null);
+  
+  // 获取当前选中的底图组
+  const currentBaseMapGroup = baseMapGroups.find(g => g.id === selectedBaseMapGroupId) || baseMapGroups[0];
+  const baseMaps = currentBaseMapGroup.maps;
 
   // 合成状态
   const [compositeFilename, setCompositeFilename] = useState<string>('合成图片.png');
@@ -429,7 +453,17 @@ export default function Tab5Compose() {
                     {iconLibrary.map(icon => (
                       <div
                         key={icon.id}
-                        onClick={() => setSelectedIconId(icon.id)}
+                        onClick={() => {
+                          setSelectedIconId(icon.id);
+                          addLog(`手动选择icon: ${icon.name}`);
+                          
+                          // 如果已经选择了底图，自动触发合成
+                          if (selectedBaseMapColor) {
+                            setTimeout(() => {
+                              renderComposite(selectedBaseMapColor, icon.id);
+                            }, 100);
+                          }
+                        }}
                         className={`bg-white rounded-lg p-1 border cursor-pointer transition-all relative group ${selectedIconId === icon.id
                             ? 'border-2 border-[#1a73e8] bg-[#e8f0fe]'
                             : 'border-[#dce5ec] hover:border-[#8B6F47]'
@@ -502,23 +536,51 @@ export default function Tab5Compose() {
               <h3 className="font-serif font-bold text-[#8B6F47] text-sm">
                 底图
               </h3>
+              {baseMapGroups.length > 1 && (
+                <select
+                  value={selectedBaseMapGroupId}
+                  onChange={(e) => {
+                    setSelectedBaseMapGroupId(e.target.value);
+                    setSelectedBaseMapColor(null);
+                    addLog(`切换到底图组: ${baseMapGroups.find(g => g.id === e.target.value)?.name}`);
+                  }}
+                  className="text-[10px] px-2 py-1 border border-[#E9DFD0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8B6F47] bg-white"
+                >
+                  {baseMapGroups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {baseMaps.map(baseMap => (
                 <div
                   key={baseMap.color}
-                  className={`bg-white rounded-xl p-2 border text-center w-16 transition-all ${selectedBaseMapColor === baseMap.color
-                      ? 'border-2 border-[#1a73e8] bg-[#e8f0fe]'
-                      : 'border-[#dce5ec]'
+                  onClick={() => {
+                    setSelectedBaseMapColor(baseMap.color);
+                    addLog(`手动选择底图: ${baseMap.color}`);
+                    
+                    // 如果已经选择了icon，自动触发合成
+                    if (selectedIconId) {
+                      setTimeout(() => {
+                        renderComposite(baseMap.color, selectedIconId);
+                      }, 100);
+                    }
+                  }}
+                  className={`bg-white rounded-xl p-3 border text-center w-16 transition-all cursor-pointer hover:scale-105 ${selectedBaseMapColor === baseMap.color
+                      ? 'border-2 border-[#1a73e8] bg-[#e8f0fe] shadow-md ring-2 ring-[#1a73e8]/30'
+                      : 'border-[#dce5ec] hover:border-[#8B6F47] hover:shadow-sm'
                     }`}
                 >
                   <img
                     src={baseMap.src}
                     alt={baseMap.color}
-                    className="w-12 h-12 object-contain rounded-lg mx-auto bg-[#EEF2F5] shadow-sm"
+                    className="w-12 h-12 object-contain rounded-lg mx-auto bg-[#EEF2F5] shadow-sm pointer-events-none"
                   />
-                  <div className="text-[9px] mt-1.5 font-bold text-[#674b2d]">{baseMap.color}</div>
+                  <div className="text-[9px] mt-1.5 font-bold text-[#674b2d] pointer-events-none">{baseMap.color}</div>
                 </div>
               ))}
             </div>
