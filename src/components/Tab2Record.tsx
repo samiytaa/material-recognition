@@ -1070,14 +1070,34 @@ export default function Tab2Record({
 
   // Export batch files as ZIP
   const exportBatchFiles = async () => {
-    const exportRows = recordList.filter(row => row.previewWithBase && row.outputName.trim() !== '');
+    // 详细统计
+    const totalRows = recordList.length;
+    const rowsWithPreview = recordList.filter(row => row.previewWithBase).length;
+    const rowsWithOutputName = recordList.filter(row => row.outputName && row.outputName.trim() !== '').length;
+    const exportRows = recordList.filter(row => row.previewWithBase && row.outputName && row.outputName.trim() !== '');
+    
+    addRecordLog(`========== 导出检查 ==========`);
+    addRecordLog(`总记录数：${totalRows}`);
+    addRecordLog(`有加底预览图的：${rowsWithPreview}`);
+    addRecordLog(`有输出名称的：${rowsWithOutputName}`);
+    addRecordLog(`可导出的（同时满足两个条件）：${exportRows.length}`);
+    
     if (exportRows.length === 0) {
-      alert('没有可导出的数据\n请先完成AI匹配和加底处理');
-      addRecordLog('导出失败：没有可导出的数据');
+      let reason = '';
+      if (rowsWithPreview === 0) {
+        reason = '所有记录都没有加底预览图，请先点击【加底】按钮';
+      } else if (rowsWithOutputName === 0) {
+        reason = '所有记录的输出名称都为空';
+      } else {
+        reason = '没有同时具备加底预览图和输出名称的记录';
+      }
+      alert(`没有可导出的数据\n\n原因：${reason}\n\n统计信息：\n- 总记录数：${totalRows}\n- 有加底预览图：${rowsWithPreview}\n- 有输出名称：${rowsWithOutputName}`);
+      addRecordLog(`导出失败：${reason}`);
       return;
     }
 
-    if (!confirm(`检测到 ${exportRows.length} 条可导出数据\n确定导出为ZIP文件吗？`)) {
+    if (!confirm(`检测到 ${exportRows.length} 条可导出数据\n\n统计信息：\n- 总记录数：${totalRows}\n- 有加底预览图：${rowsWithPreview}\n- 有输出名称：${rowsWithOutputName}\n\n确定导出为ZIP文件吗？`)) {
+      addRecordLog('用户取消导出');
       return;
     }
 
