@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Bot, CheckCircle, RotateCcw, ZoomIn, Trash2 } from 'lucide-react';
 import { RecordRow, ScreenshotPrimaryCategory } from '../../types';
 import { DEFAULT_SCREENSHOT_CATEGORY, SCREENSHOT_CATEGORY_OPTIONS, getIconPrimaryCategory } from '../../utils/tab2Helper';
@@ -49,6 +49,15 @@ export default function RecordTableRow({
   // 双击计时器
   const clickTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const clickCountRef = React.useRef(0);
+  const onUpdateRowRef = React.useRef(onUpdateRow);
+  const basemapImage = useMemo(() => {
+    const selectedGroup = basemapGroups.find(g => g.id === selectedGroupId);
+    return selectedGroup?.thumbnails.find(item => item.color === row.baseColor)?.image ?? null;
+  }, [basemapGroups, row.baseColor, selectedGroupId]);
+
+  useEffect(() => {
+    onUpdateRowRef.current = onUpdateRow;
+  }, [onUpdateRow]);
 
   // 当原图、底色、底图组或缩放模式改变时，自动生成预览并更新到row.previewWithBase
   useEffect(() => {
@@ -57,13 +66,12 @@ export default function RecordTableRow({
       return;
     }
 
-    const selectedGroup = basemapGroups.find(g => g.id === selectedGroupId);
-    const basemapItem = selectedGroup?.thumbnails.find(item => item.color === row.baseColor);
-
-    if (!basemapItem) {
+    if (!basemapImage) {
       setPreviewUrl(row.originalImage); // 如果找不到底图，显示原图
       return;
     }
+
+    let cancelled = false;
 
     // 合成底图和原图（与Tab5和Tab2加底按钮逻辑完全一致）
     const canvas = document.createElement('canvas');
@@ -72,6 +80,7 @@ export default function RecordTableRow({
     const baseImg = new Image();
     baseImg.crossOrigin = 'anonymous';
     baseImg.onload = () => {
+      if (cancelled) return;
       canvas.width = baseImg.width;
       canvas.height = baseImg.height;
 
@@ -81,6 +90,7 @@ export default function RecordTableRow({
       // 加载并绘制原图
       const propImg = new Image();
       propImg.onload = () => {
+        if (cancelled) return;
         if (enableContainScale) {
           // Contain 等比缩放模式：画布边界等比适配居中算法（与Tab5一致）
           const targetWidth = canvas.width;
@@ -120,20 +130,26 @@ export default function RecordTableRow({
         setPreviewUrl(compositeDataUrl);
         
         // 同步更新到row.previewWithBase，确保导出时使用的是当前预览效果
-        if (onUpdateRow) {
-          onUpdateRow(rowIndex, { previewWithBase: compositeDataUrl });
+        if (row.previewWithBase !== compositeDataUrl) {
+          onUpdateRowRef.current(rowIndex, { previewWithBase: compositeDataUrl });
         }
       };
       propImg.onerror = () => {
+        if (cancelled) return;
         setPreviewUrl(row.originalImage); // 加载失败，使用原图
       };
       propImg.src = row.originalImage;
     };
     baseImg.onerror = () => {
+      if (cancelled) return;
       setPreviewUrl(row.originalImage); // 加载失败，使用原图
     };
-    baseImg.src = basemapItem.image;
-  }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups, enableContainScale, rowIndex, onUpdateRow]);
+    baseImg.src = basemapImage;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [row.originalImage, row.baseColor, row.previewWithBase, selectedGroupId, basemapImage, enableContainScale, rowIndex]);
 
   // 整行点击处理：单击选中，双击进入校对
   const handleRowClick = (e: React.MouseEvent) => {
