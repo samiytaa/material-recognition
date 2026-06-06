@@ -3,6 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { runDirectVisionMatching } from '../utils/visionApiHelper';
 import { UploadZone } from './common';
 
+// 导入底图图片
+import propGold from '/public/basemaps/prop-gold.png';
+import propPurple from '/public/basemaps/prop-purple.png';
+import propBlue from '/public/basemaps/prop-blue.png';
+import propGreen from '/public/basemaps/prop-green.png';
+import propBrown from '/public/basemaps/prop-brown.png';
+
 interface IconLibraryItem {
   id: string;
   name: string;
@@ -27,11 +34,11 @@ export default function Tab5Compose() {
 
   // 底图状态
   const [baseMaps] = useState<BaseMapItem[]>([
-    { color: '金', name: 'prop-gold.png', src: 'basemaps/prop-gold.png' },
-    { color: '紫', name: 'prop-purple.png', src: 'basemaps/prop-purple.png' },
-    { color: '蓝', name: 'prop-blue.png', src: 'basemaps/prop-blue.png' },
-    { color: '绿', name: 'prop-green.png', src: 'basemaps/prop-green.png' },
-    { color: '咖', name: 'prop-brown.png', src: 'basemaps/prop-brown.png' }
+    { color: '金', name: 'prop-gold.png', src: propGold },
+    { color: '紫', name: 'prop-purple.png', src: propPurple },
+    { color: '蓝', name: 'prop-blue.png', src: propBlue },
+    { color: '绿', name: 'prop-green.png', src: propGreen },
+    { color: '咖', name: 'prop-brown.png', src: propBrown }
   ]);
   const [selectedBaseMapColor, setSelectedBaseMapColor] = useState<string | null>(null);
 
