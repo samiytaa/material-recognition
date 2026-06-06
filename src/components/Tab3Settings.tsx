@@ -1,140 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Sparkles } from 'lucide-react';
-
-// 导入底图图片
-import propGold from '/basemaps/prop-gold.png';
-import propPurple from '/basemaps/prop-purple.png';
-import propBlue from '/basemaps/prop-blue.png';
-import propGreen from '/basemaps/prop-green.png';
-import propBrown from '/basemaps/prop-brown.png';
-
-interface BasemapItem {
-  id: string;
-  image: string;
-  color: string;
-}
-
-interface MapGroup {
-  id: string;
-  name: string;
-  thumbnails: BasemapItem[];
-}
+import { useBasemapGroups, type MapGroup, type BasemapItem } from '../hooks';
 
 interface CategoryRow {
   id: string;
   name: string;
 }
 
-// 默认底图配置，使用 public/basemaps 中的文件
-const DEFAULT_BASEMAP_GROUPS: MapGroup[] = [
-  {
-    id: 'group_default',
-    name: '道具底图',
-    thumbnails: [
-      { id: 'basemap_1', image: propBrown, color: '咖' },
-      { id: 'basemap_2', image: propPurple, color: '紫' },
-      { id: 'basemap_3', image: propGreen, color: '绿' },
-      { id: 'basemap_4', image: propBlue, color: '蓝' },
-      { id: 'basemap_5', image: propGold, color: '金' }
-    ]
-  }
-];
-
-const migrateBasemapImage = (image: string): string => {
-  if (image.includes('金') || image.includes('gold')) {
-    return propGold;
-  }
-  if (image.includes('紫') || image.includes('purple')) {
-    return propPurple;
-  }
-  if (image.includes('蓝') || image.includes('blue')) {
-    return propBlue;
-  }
-  if (image.includes('绿') || image.includes('green')) {
-    return propGreen;
-  }
-  if (image.includes('咖') || image.includes('brown')) {
-    return propBrown;
-  }
-  return image;
-};
-
-const isLegacyBasemapPath = (image: string): boolean => (
-  image.includes('道具-') ||
-  image.startsWith('basemaps/prop-') ||
-  image.startsWith('./basemaps/prop-') ||
-  image.startsWith('../basemaps/prop-')
-);
-
 export default function Tab3Settings() {
-  // 在组件加载时立即执行 localStorage 清理和迁移
-  useEffect(() => {
-    // 强制迁移旧的底图配置
-    const saved = localStorage.getItem('tab3_groups');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        let needsUpdate = false;
-        
-        const migrated = parsed.map((group: MapGroup) => {
-          const newThumbnails = group.thumbnails.map((item: BasemapItem) => {
-            let newImage = item.image;
-
-            if (isLegacyBasemapPath(item.image)) {
-              needsUpdate = true;
-              newImage = migrateBasemapImage(item.image);
-            }
-            return { ...item, image: newImage };
-          });
-          return { ...group, thumbnails: newThumbnails };
-        });
-        
-        // 如果检测到旧路径，立即更新 localStorage
-        if (needsUpdate) {
-          localStorage.setItem('tab3_groups', JSON.stringify(migrated));
-          console.log('✓ 已自动迁移底图路径');
-        }
-      } catch (e) {
-        console.error('迁移底图配置失败:', e);
-      }
-    }
-  }, []); // 只在组件首次加载时执行一次
-
-  // --- STATE FOR SECTION 1: MAP GROUPS ---
-  const [groups, setGroups] = useState<MapGroup[]>(() => {
-    const saved = localStorage.getItem('tab3_groups');
-    if (saved) {
-      try { 
-        const parsed = JSON.parse(saved);
-        // 如果是旧版本的数据（string[] 或 SVG），则使用新的默认配置
-        if (parsed.length > 0 && parsed[0].thumbnails) {
-          const firstThumb = parsed[0].thumbnails[0];
-          if (typeof firstThumb === 'string' || firstThumb?.image?.startsWith('data:image/svg+xml')) {
-            return DEFAULT_BASEMAP_GROUPS;
-          }
-          
-          // 迁移旧的中文文件名和相对路径到新的导入变量
-          const migrated = parsed.map((group: MapGroup) => ({
-            ...group,
-            thumbnails: group.thumbnails.map((item: BasemapItem) => {
-              // 如果是旧的中文路径或相对路径，替换为导入的变量
-              const newImage = isLegacyBasemapPath(item.image)
-                ? migrateBasemapImage(item.image)
-                : item.image;
-              return { ...item, image: newImage };
-            })
-          }));
-          
-          return migrated;
-        }
-        return parsed;
-      } catch (e) { 
-        console.error(e); 
-      }
-    }
-    return DEFAULT_BASEMAP_GROUPS;
-  });
+  // 使用统一的底图组管理 Hook
+  const { groups, saveGroups } = useBasemapGroups();
 
   // --- STATE FOR SECTION 2: CATEGORY COLS ---
   const [categories, setCategories] = useState<CategoryRow[]>(() => {
@@ -154,9 +30,7 @@ export default function Tab3Settings() {
   const [colorInputValue, setColorInputValue] = useState('');
 
   // --- LOCAL PERSISTENCE ---
-  useEffect(() => {
-    localStorage.setItem('tab3_groups', JSON.stringify(groups));
-  }, [groups]);
+  // 不再需要手动管理 groups 的 localStorage，由 Hook 处理
 
   useEffect(() => {
     localStorage.setItem('tab3_categories', JSON.stringify(categories));

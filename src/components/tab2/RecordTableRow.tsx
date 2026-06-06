@@ -46,6 +46,7 @@ interface RecordTableRowProps {
   availableColors: string[];
   basemapGroups: MapGroup[];
   selectedGroupId: string;
+  enableContainScale: boolean; // 加底等比缩放开关
   isSelected: boolean;
   onToggleSelection: (rowId: number, event?: React.MouseEvent) => void;
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
@@ -109,6 +110,7 @@ export default function RecordTableRow({
   availableColors,
   basemapGroups,
   selectedGroupId,
+  enableContainScale, // 加底等比缩放开关
   isSelected,
   onToggleSelection,
   onViewImage,
@@ -120,7 +122,7 @@ export default function RecordTableRow({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
 
-  // 当原图、底色或底图组改变时，自动生成预览并更新到row.previewWithBase
+  // 当原图、底色、底图组或缩放模式改变时，自动生成预览并更新到row.previewWithBase
   useEffect(() => {
     if (!row.originalImage || !row.baseColor || !selectedGroupId) {
       setPreviewUrl(null);
@@ -135,7 +137,7 @@ export default function RecordTableRow({
       return;
     }
 
-    // 合成底图和原图
+    // 合成底图和原图（与Tab5和Tab2加底按钮逻辑完全一致）
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
@@ -151,24 +153,39 @@ export default function RecordTableRow({
       // 加载并绘制原图
       const propImg = new Image();
       propImg.onload = () => {
-        // 使用Contain等比缩放模式（与加底按钮保持一致）
-        const targetWidth = canvas.width;
-        const targetHeight = canvas.height;
-        const sourceWidth = propImg.width;
-        const sourceHeight = propImg.height;
-        
-        // 计算缩放系数：min(目标宽/源宽, 目标高/源高)
-        const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
-        
-        // 缩放后的尺寸
-        const scaledWidth = sourceWidth * scale;
-        const scaledHeight = sourceHeight * scale;
-        
-        // 中心锚点居中定位
-        const x = (targetWidth - scaledWidth) / 2;
-        const y = (targetHeight - scaledHeight) / 2;
+        if (enableContainScale) {
+          // Contain 等比缩放模式：画布边界等比适配居中算法（与Tab5一致）
+          const targetWidth = canvas.width;
+          const targetHeight = canvas.height;
+          const sourceWidth = propImg.width;
+          const sourceHeight = propImg.height;
+          
+          // 计算缩放系数：min(目标宽/源宽, 目标高/源高)
+          const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+          
+          // 缩放后的尺寸
+          const scaledWidth = sourceWidth * scale;
+          const scaledHeight = sourceHeight * scale;
+          
+          // 中心锚点居中定位
+          const x = (targetWidth - scaledWidth) / 2;
+          const y = (targetHeight - scaledHeight) / 2;
 
-        ctx!.drawImage(propImg, x, y, scaledWidth, scaledHeight);
+          ctx!.drawImage(propImg, x, y, scaledWidth, scaledHeight);
+        } else {
+          // 禁用缩放模式：原图原始尺寸居中渲染，超出画布区域裁切（与Tab5一致）
+          const targetWidth = canvas.width;
+          const targetHeight = canvas.height;
+          const sourceWidth = propImg.width;
+          const sourceHeight = propImg.height;
+          
+          // 中心锚点居中定位
+          const offsetX = (targetWidth - sourceWidth) / 2;
+          const offsetY = (targetHeight - sourceHeight) / 2;
+          
+          // 直接绘制原尺寸 icon（Canvas 会自动裁切超出部分）
+          ctx!.drawImage(propImg, offsetX, offsetY, sourceWidth, sourceHeight);
+        }
 
         // 导出合成结果
         const compositeDataUrl = canvas.toDataURL('image/png');
@@ -188,7 +205,7 @@ export default function RecordTableRow({
       setPreviewUrl(row.originalImage); // 加载失败，使用原图
     };
     baseImg.src = basemapItem.image;
-  }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups, rowIndex, onUpdateRow]);
+  }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups, enableContainScale, rowIndex, onUpdateRow]);
 
   return (
     <>

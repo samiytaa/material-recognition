@@ -8,6 +8,7 @@ interface RecordTableProps {
   availableColors: string[];
   basemapGroups: MapGroup[];
   selectedGroupId: string;
+  enableContainScale: boolean; // 加底等比缩放开关
   selectedRowIds: number[];
   onToggleRowSelection: (rowId: number, event?: React.MouseEvent) => void;
   onToggleSelectAll: () => void;
@@ -37,6 +38,7 @@ export default function RecordTable({
   availableColors,
   basemapGroups,
   selectedGroupId,
+  enableContainScale, // 加底等比缩放开关
   selectedRowIds,
   onToggleRowSelection,
   onToggleSelectAll,
@@ -133,6 +135,7 @@ export default function RecordTable({
             availableColors={availableColors}
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
+            enableContainScale={enableContainScale}
             isSelected={selectedRowIds.includes(row.id)}
             onToggleSelection={(rowId, event) => onToggleRowSelection(rowId, event)}
             onViewImage={onViewImage}

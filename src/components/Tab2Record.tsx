@@ -1235,6 +1235,7 @@ export default function Tab2Record({
             availableColors={availableColors}
             basemapGroups={basemapGroups}
             selectedGroupId={selectedGroupId}
+            enableContainScale={enableContainScale}
             selectedRowIds={selectedRowIds}
             onToggleRowSelection={(filteredRowIndex, event) => {
               // 通过过滤后的索引获取 row.id
