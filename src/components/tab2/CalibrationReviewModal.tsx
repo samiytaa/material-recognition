@@ -352,6 +352,7 @@ export default function CalibrationReviewModal({
         <IconSelectorPanel
           isOpen={showReplacePanel}
           tab1PropsList={tab1PropsList}
+          currentRows={rows}
           onSelect={handleReplaceIconClick}
           onClose={() => setShowReplacePanel(false)}
         />
