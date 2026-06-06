@@ -5,18 +5,42 @@ import RecordTableRow from './RecordTableRow';
 
 interface RecordTableProps {
   records: RecordRow[];
+  availableColors: string[];
+  availableCategories: string[];
+  basemapGroups: MapGroup[];
+  selectedGroupId: string;
+  selectedRowIds: number[];
+  onToggleRowSelection: (rowId: number) => void;
+  onToggleSelectAll: () => void;
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
-  onDeleteRow: (rowId: number) => void;
+}
+
+interface BasemapItem {
+  id: string;
+  image: string;
+  color: string;
+}
+
+interface MapGroup {
+  id: string;
+  name: string;
+  thumbnails: BasemapItem[];
 }
 
 export default function RecordTable({
   records,
+  availableColors,
+  availableCategories,
+  basemapGroups,
+  selectedGroupId,
+  selectedRowIds,
+  onToggleRowSelection,
+  onToggleSelectAll,
   onViewImage,
   onUploadImage,
   onUpdateRow,
-  onDeleteRow,
 }: RecordTableProps) {
   if (records.length === 0) {
     return (
@@ -39,10 +63,16 @@ export default function RecordTable({
       <thead className="sticky top-0 z-20 shadow-sm bg-[#FAF8F4]">
         <tr>
           <th className="w-[40px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            操作
+            <input
+              type="checkbox"
+              checked={selectedRowIds.length === records.length && records.length > 0}
+              onChange={onToggleSelectAll}
+              className="w-4 h-4 cursor-pointer accent-[#8B6F47]"
+              title="全选/取消全选"
+            />
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            道具原图
+            道具icon
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             游戏截图
@@ -70,10 +100,15 @@ export default function RecordTable({
             key={row.id}
             row={row}
             rowIndex={idx}
+            availableColors={availableColors}
+            availableCategories={availableCategories}
+            basemapGroups={basemapGroups}
+            selectedGroupId={selectedGroupId}
+            isSelected={selectedRowIds.includes(idx)}
+            onToggleSelection={onToggleRowSelection}
             onViewImage={onViewImage}
             onUploadImage={onUploadImage}
             onUpdateRow={onUpdateRow}
-            onDeleteRow={onDeleteRow}
           />
         ))}
       </tbody>

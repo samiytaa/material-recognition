@@ -421,95 +421,132 @@ export function parseFileName(fileName: string): PropItem {
     if (CATEGORIES[categoryCode]) {
       const cat      = normalizeCategoryName(CATEGORIES[categoryCode]);
       const isFloor  = !!FLOOR_CATEGORIES[categoryCode];
-      const lead     = leadOrAll !== 'all' ? (MALE_LEADS[leadOrAll] ?? null) : null;
+      
+      // 确定场景类型
+      let scene: 'indoor' | 'outdoor' | 'background' = 'indoor';
+      if (OUTDOOR_CATEGORIES[categoryCode]) scene = 'outdoor';
+      
+      const ownership = identifyOwnership(cleanName, segments, cat, { leadOrAll });
+      
       let displayName: string;
-      if (isFd && lead)    displayName = `初见日-${lead}-${cat}`;
-      else if (isFd)       displayName = `初见日-${cat}`;
-      else if (lead)       displayName = `${lead}-${cat}`;
-      else                 displayName = cat;
+      if (isFd && ownership.name)    displayName = `初见日-${ownership.name}-${cat}`;
+      else if (isFd)                 displayName = `初见日-${cat}`;
+      else if (ownership.name)       displayName = `${ownership.name}-${cat}`;
+      else                           displayName = cat;
 
-      return makeResult(fileName, displayName, cat, 'furniture', lead, isFd, isFloor);
+      const furnitureDetails: FurnitureDetails = {
+        scene,
+        isFloor,
+        isGrowthProp: isFd,
+        isSuit: false
+      };
+
+      return makeResult(fileName, displayName, cat, 'furniture', ownership, furnitureDetails);
     }
   }
 
   // ── 6. 套装家具 ────────────────────────────────────────────
   if (cleanName.includes('_xzrhw_')) {
-    return makeResult(fileName, '套装-户外', '户外', 'furniture', null, false, false,
-      ['家具', '套装', '户外']);
+    const furnitureDetails: FurnitureDetails = {
+      scene: 'outdoor',
+      isFloor: false,
+      isGrowthProp: false,
+      isSuit: true
+    };
+    return makeResult(
+      fileName, 
+      '套装-户外', 
+      '户外', 
+      'furniture', 
+      { type: 'none', name: null, code: null },
+      furnitureDetails
+    );
   }
 
   // 户内套装：含 _xzr_ 且不跟具体自由装修分类码
   const FURNITURE_CODES = /_(qiju|zhiwu|zhuangshi|guajian|qiangzhi|diban|outdoor_diban|jianzhu|jingguan|chenshe)(_|$)/;
   if (cleanName.includes('_xzr_') && !FURNITURE_CODES.test(cleanName)) {
-    return makeResult(fileName, '套装-户内', '户内', 'furniture', null, false, false,
-      ['家具', '套装', '户内']);
+    const furnitureDetails: FurnitureDetails = {
+      scene: 'indoor',
+      isFloor: false,
+      isGrowthProp: false,
+      isSuit: true
+    };
+    return makeResult(
+      fileName, 
+      '套装-户内', 
+      '户内', 
+      'furniture',
+      { type: 'none', name: null, code: null },
+      furnitureDetails
+    );
   }
 
   // 衬景（天空/地貌/筑台，统一归衬景）
   if (cleanName.startsWith('icon_xzr')) {
-    return makeResult(fileName, '衬景', '衬景', 'furniture', null, false, false,
-      ['家具', '自由装修', '衬景']);
+    const furnitureDetails: FurnitureDetails = {
+      scene: 'background',
+      isFloor: false,
+      isGrowthProp: false,
+      isSuit: false
+    };
+    return makeResult(
+      fileName, 
+      '衬景', 
+      '衬景', 
+      'furniture',
+      { type: 'none', name: null, code: null },
+      furnitureDetails
+    );
   }
 
   // ── 7. _cjr_ 初见日道具（带 icon 前缀） ────────────────────
   if (cleanName.includes('_cjr_') || /_cjr\d+_/.test(cleanName)) {
-    const lead = globalMaleLead;
-    return makeResult(
-      fileName,
-      lead ? `${lead}-初见日道具` : '初见日道具',
-      '初见日道具',
-      'other',
-      lead,
-    );
+    const ownership = identifyOwnership(cleanName, segments, '初见日道具');
+    const displayName = ownership.name ? `${ownership.name}-初见日道具` : '初见日道具';
+    return makeResult(fileName, displayName, '初见日道具', 'other', ownership);
   }
 
   // ── 8. _ccl_ 男主互动道具 ──────────────────────────────────
   //    格式：icon_ccl_<数字4位>，第1位=男主序号
   const cclMatch = cleanName.match(/_ccl_(\d{4})/);
   if (cclMatch) {
-    const leadNum  = cclMatch[1][0];
-    const LEAD_NUM: Record<string, string> = { '1':'刘辩','2':'傅融','3':'袁基','4':'左慈','5':'孙策' };
-    const lead     = LEAD_NUM[leadNum] ?? globalMaleLead ?? '未知';
-    return makeResult(fileName, `${lead}-互动道具`, '男主互动道具', 'other', lead);
+    const cclCode = cclMatch[1];
+    const ownership = identifyOwnership(cleanName, segments, '男主互动道具', { cclCode });
+    const displayName = ownership.name ? `${ownership.name}-互动道具` : '互动道具';
+    return makeResult(fileName, displayName, '男主互动道具', 'other', ownership);
   }
 
   // ── 9. _component_ 男主装饰 ────────────────────────────────
   //    格式：icon_component_<数字5位>，第1位=男主，第2位=套系
   const compMatch = cleanName.match(/_component_(\d{5})/);
   if (compMatch) {
-    const code      = compMatch[1];
-    const LEAD_NUM: Record<string, string> = { '1':'刘辩','2':'傅融','3':'袁基','4':'左慈','5':'孙策' };
-    const BATCH:    Record<string, string> = { '1':'夕情欢馀','2':'春月柳','3':'燕歌行' };
-    const lead      = LEAD_NUM[code[0]] ?? globalMaleLead ?? '未知';
-    const batch     = BATCH[code[1]] ?? '';
-    return makeResult(
-      fileName,
-      batch ? `${lead}-${batch}` : `${lead}-装饰`,
-      '男主装饰',
-      'other',
-      lead,
-    );
+    const componentCode = compMatch[1];
+    const ownership = identifyOwnership(cleanName, segments, '男主装饰', { componentCode });
+    
+    const BATCH: Record<string, string> = { '1':'夕情欢馀','2':'春月柳','3':'燕歌行' };
+    const batch = BATCH[componentCode[1]] ?? '';
+    
+    const displayName = ownership.name && batch 
+      ? `${ownership.name}-${batch}` 
+      : ownership.name 
+        ? `${ownership.name}-装饰` 
+        : '装饰';
+    
+    return makeResult(fileName, displayName, '男主装饰', 'other', ownership);
   }
 
   // ── 10. 礼包（lb 段，排除家具格式和男主名缩写冲突） ─────────
-  //     lb 既是"刘辩"缩写也是礼包码，家具格式已在步骤5处理，此处只匹配非家具
   if (
     (cleanName.includes('_lb_') || cleanName.endsWith('_lb')) &&
     !cleanName.match(/^icon_s\d+_/)
   ) {
-    // 如果文件名中有其他男主/密探线索则附加，否则纯"礼包"
-    const person = globalSpyName ?? null;
-    return makeResult(
-      fileName,
-      person ? `${person}-礼包` : '礼包',
-      '礼包',
-      'other',
-      null,
-    );
+    const ownership = identifyOwnership(cleanName, segments, '礼包');
+    const displayName = ownership.name ? `${ownership.name}-礼包` : '礼包';
+    return makeResult(fileName, displayName, '礼包', 'other', ownership);
   }
 
   // ── 11. 其他道具分类（关键字段匹配） ───────────────────────
-  //    按优先级排列，长 key 放前（避免 txk 比 txk2 先匹配）
   const TOKEN_CATS: Array<[string, string]> = [
     ['txk2',          '自定义头像框'],
     ['txk',           '头像框'],
@@ -521,7 +558,7 @@ export function parseFileName(fileName: string): PropItem {
     ['xzrdz',         '家具道具'],
     ['xrxj',          '笺匣'],
     ['hd',            '活动'],
-    // 密探相关（含复合 key，长 key 优先）
+    // 密探相关
     ['mt_shadow_cjhd','言事章影子'],
     ['mt_cjhd',       '言事章'],
     ['mt_skin',       '密探皮肤'],
@@ -551,78 +588,37 @@ export function parseFileName(fileName: string): PropItem {
 
   // 自选密探（_mt_ 但非上面已覆盖的 mt_* 分支）
   const MT_EXCEPTIONS = /_(mt_cjhd|mt_shadow_cjhd|mt_skin|mtwq)(_|$)/;
-  const isMtGeneric =
-    cleanName.includes('_mt_') && !MT_EXCEPTIONS.test(cleanName);
+  const isMtGeneric = cleanName.includes('_mt_') && !MT_EXCEPTIONS.test(cleanName);
 
   // 男主元素（_nz_ 但非上面已覆盖的 nz_* 分支）
   const NZ_EXCEPTIONS = /_(nz_cjhd|nz_shadow_cjhd|nz_skin|nz_xzrdz|nz_xzrpf|nzbg)(_|$)/;
-  const isNzGeneric =
-    cleanName.includes('_nz_') && !NZ_EXCEPTIONS.test(cleanName);
+  const isNzGeneric = cleanName.includes('_nz_') && !NZ_EXCEPTIONS.test(cleanName);
 
   for (const [token, catName] of TOKEN_CATS) {
-    const hasToken =
-      cleanName.includes(`_${token}_`) ||
-      cleanName.endsWith(`_${token}`);
+    const hasToken = cleanName.includes(`_${token}_`) || cleanName.endsWith(`_${token}`);
     if (!hasToken) continue;
 
-    // 根据分类决定附加男主还是密探名
-    const isMtCat = ['密探礼物','心纸','言事章','言事章影子','密探皮肤','密探温泉'].includes(catName);
-    const isNzCat = ['男主言事章','男主言事章影子','男主皮肤','男主心纸君动作',
-                     '男主心纸君皮肤','男主背景','男主回忆','吉光片羽'].includes(catName);
-    const isActCat = ['魂生一串系列','魂生一串系列2','七夕活动','肉鸽',
-                      '躬耕南阳','海岛漂流','一周年','半周年'].includes(catName);
-
-    let person: string | null = null;
-    let lead: string | null   = null;
-    if (isMtCat) {
-      person = globalSpyName;
-    } else if (isNzCat) {
-      person = globalMaleLead;
-      lead   = globalMaleLead;
-    } else if (isActCat) {
-      person = globalMaleLead ?? globalSpyName;
-      lead   = globalMaleLead;
-    } else {
-      person = globalMaleLead ?? globalSpyName;
-      lead   = globalMaleLead;
-    }
-
-    return makeResult(
-      fileName,
-      person ? `${person}-${catName}` : catName,
-      catName,
-      'other',
-      lead,
-    );
+    const ownership = identifyOwnership(cleanName, segments, catName);
+    const displayName = ownership.name ? `${ownership.name}-${catName}` : catName;
+    return makeResult(fileName, displayName, catName, 'other', ownership);
   }
 
   // 自选密探泛匹配
   if (isMtGeneric) {
-    return makeResult(
-      fileName,
-      globalSpyName ? `${globalSpyName}-自选密探` : '自选密探',
-      '自选密探',
-    );
+    const ownership = identifyOwnership(cleanName, segments, '自选密探');
+    const displayName = ownership.name ? `${ownership.name}-自选密探` : '自选密探';
+    return makeResult(fileName, displayName, '自选密探', 'other', ownership);
   }
 
   // 男主元素泛匹配
   if (isNzGeneric) {
-    return makeResult(
-      fileName,
-      globalMaleLead ? `${globalMaleLead}-男主元素` : '男主元素',
-      '男主元素',
-      'other',
-      globalMaleLead,
-    );
+    const ownership = identifyOwnership(cleanName, segments, '男主元素');
+    const displayName = ownership.name ? `${ownership.name}-男主元素` : '男主元素';
+    return makeResult(fileName, displayName, '男主元素', 'other', ownership);
   }
 
   // ── 12. 兜底 ────────────────────────────────────────────────
-  const person = globalMaleLead ?? globalSpyName;
-  return makeResult(
-    fileName,
-    person ? `${person}-${cleanName}` : cleanName,
-    '其他',
-    'other',
-    globalMaleLead,
-  );
+  const ownership = identifyOwnership(cleanName, segments, '其他');
+  const displayName = ownership.name ? `${ownership.name}-${cleanName}` : cleanName;
+  return makeResult(fileName, displayName, '其他', 'other', ownership);
 }

@@ -56,10 +56,12 @@ export default function PreviewPanel({ prop }: PreviewPanelProps) {
             </div>
           )}
           
-          {prop.maleLead && (
+          {prop.ownership.name && (
             <div className="flex items-center justify-between">
-              <span className="text-[#8E8276]">男主:</span>
-              <span className="font-semibold text-[#9E4A4A]">{prop.maleLead}</span>
+              <span className="text-[#8E8276]">
+                {prop.ownership.type === 'male_lead' ? '男主:' : '密探:'}
+              </span>
+              <span className="font-semibold text-[#9E4A4A]">{prop.ownership.name}</span>
             </div>
           )}
           

@@ -1,10 +1,22 @@
-import React, { useRef, useState } from 'react';
-import { Sparkles, Layers, RotateCcw, Save, Download } from 'lucide-react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { Sparkles, Layers, Download } from 'lucide-react';
 import { RecordRow } from '../types';
 import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
 import { UploadZone, Button, Card } from './common';
 import { readFileAsDataURL, getFileNameWithoutExtension } from '../utils/fileHelper';
+
+interface BasemapItem {
+  id: string;
+  image: string;
+  color: string;
+}
+
+interface MapGroup {
+  id: string;
+  name: string;
+  thumbnails: BasemapItem[];
+}
 
 interface Tab2RecordProps {
   recordList: RecordRow[];
@@ -37,6 +49,114 @@ export default function Tab2Record({
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isScreenshotListExpanded, setIsScreenshotListExpanded] = useState(true);
   
+  // 选中行管理
+  const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
+  
+  // 切换行选择状态
+  const toggleRowSelection = (rowId: number) => {
+    setSelectedRowIds(prev => 
+      prev.includes(rowId) 
+        ? prev.filter(id => id !== rowId)
+        : [...prev, rowId]
+    );
+  };
+  
+  // 全选/取消全选
+  const toggleSelectAll = () => {
+    if (selectedRowIds.length === recordList.length) {
+      setSelectedRowIds([]);
+    } else {
+      setSelectedRowIds(recordList.map((_, idx) => idx));
+    }
+  };
+  
+  // 批量删除选中的行
+  const deleteSelectedRows = () => {
+    if (selectedRowIds.length === 0) return;
+    
+    if (!confirm(`确定要删除选中的 ${selectedRowIds.length} 行吗？`)) return;
+    
+    setRecordList(prev => prev.filter((_, idx) => !selectedRowIds.includes(idx)));
+    addRecordLog(`已批量删除 ${selectedRowIds.length} 行`);
+    setSelectedRowIds([]);
+  };
+  
+  // 底图组相关状态
+  const [basemapGroups, setBasemapGroups] = useState<MapGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [availableColors, setAvailableColors] = useState<string[]>(['金', '紫', '蓝', '绿', '咖']);
+  
+  // 从 categoryConfig 中提取所有分类
+  const availableCategories = useMemo(() => {
+    const categories: string[] = [];
+    
+    // 从 categoryConfig.json 加载
+    const categoryConfigModule = require('../categoryConfig.json');
+    const config = categoryConfigModule;
+    
+    // 除家具以外的道具
+    const nonFurniture = config['除家具以外的道具'] || {};
+    for (const items of Object.values(nonFurniture)) {
+      if (Array.isArray(items)) {
+        categories.push(...items);
+      }
+    }
+    
+    // 家具相关分类
+    const furniture = config['家具'] || {};
+    
+    // 套装
+    if (Array.isArray(furniture['套装'])) {
+      categories.push(...furniture['套装']);
+    }
+    
+    // 自由装修
+    const free = furniture['自由装修'];
+    if (free) {
+      for (const items of Object.values(free)) {
+        if (Array.isArray(items)) {
+          categories.push(...items);
+        } else if (typeof items === 'object') {
+          for (const subitems of Object.values(items)) {
+            if (Array.isArray(subitems)) {
+              categories.push(...subitems);
+            }
+          }
+        }
+      }
+    }
+    
+    return Array.from(new Set(categories)).sort();
+  }, []);
+  
+  // 从localStorage加载底图组配置
+  useEffect(() => {
+    const saved = localStorage.getItem('tab3_groups');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setBasemapGroups(parsed);
+        if (parsed.length > 0) {
+          setSelectedGroupId(parsed[0].id);
+        }
+      } catch (e) {
+        console.error('加载底图组配置失败:', e);
+      }
+    }
+  }, []);
+  
+  // 当选择的底图组变化时，更新可用底色列表
+  useEffect(() => {
+    if (selectedGroupId) {
+      const selectedGroup = basemapGroups.find(g => g.id === selectedGroupId);
+      if (selectedGroup) {
+        const colors = selectedGroup.thumbnails.map(item => item.color);
+        setAvailableColors(colors.length > 0 ? colors : ['金', '紫', '蓝', '绿', '咖']);
+        addRecordLog(`切换底图组：${selectedGroup.name}（${colors.length}个底色）`);
+      }
+    }
+  }, [selectedGroupId, basemapGroups]);
+  
   // 独立存储上传的截图，不直接加入表格
   const [uploadedScreenshots, setUploadedScreenshots] = useState<Array<{
     id: number;
@@ -50,7 +170,7 @@ export default function Tab2Record({
   // Large image viewing helper
   const viewRowImage = (rowId: number, type: 'original' | 'screenshot') => {
     setSelectedPart({ rowId, type });
-    addRecordLog(`查看第 ${rowId + 1} 行的${type === 'original' ? '道具原图' : '游戏截图'}`);
+    addRecordLog(`查看第 ${rowId + 1} 行的${type === 'original' ? '道具icon' : '游戏截图'}`);
   };
 
   const getPreviewImage = () => {
@@ -128,7 +248,7 @@ export default function Tab2Record({
         };
         return updated;
       });
-      addRecordLog(`已上传第 ${rowId + 1} 行的${type === 'original' ? '道具原图' : '游戏截图'}`);
+      addRecordLog(`已上传第 ${rowId + 1} 行的${type === 'original' ? '道具icon' : '游戏截图'}`);
     }
   };
 
@@ -168,8 +288,8 @@ export default function Tab2Record({
 
       let processedCount = 0;
       const mockNames = ['寒潭桥', '米拱门', '莲心泉', '雕花屏风', '锦绣帷幔', '青瓷花瓶'];
-      const mockColors = ['金', '紫', '蓝', '绿', '咖'];
-      const mockCategories = ['家具类', '其他类'];
+      const mockColors = availableColors.length > 0 ? availableColors : ['金', '紫', '蓝', '绿', '咖'];
+      const mockCategories = availableCategories.length > 0 ? availableCategories : ['起居', '置物', '装饰', '挂件', '男主元素', '密探礼物'];
 
       const intervalTime = 300;
       const newRows: RecordRow[] = [];
@@ -236,8 +356,8 @@ export default function Tab2Record({
 
     let processedCount = 0;
     const mockNames = ['寒潭桥', '米拱门', '莲心泉', '雕花屏风', '锦绣帷幔', '青瓷花瓶'];
-    const mockColors = ['金', '紫', '蓝', '绿', '咖'];
-    const mockCategories = ['家具类', '其他类'];
+    const mockColors = availableColors.length > 0 ? availableColors : ['金', '紫', '蓝', '绿', '咖'];
+    const mockCategories = availableCategories.length > 0 ? availableCategories : ['起居', '置物', '装饰', '挂件', '男主元素', '密探礼物'];
 
     // Create sequentially timed updates for rows that contain static images
     const intervalTime = 300;
@@ -288,7 +408,7 @@ export default function Tab2Record({
     setTimeout(processNext, intervalTime);
   };
 
-  // Custom watermark background addition (replicating exact action)
+  // Custom watermark background addition - now saves the preview to previewWithBase
   const addWatermarkBase = () => {
     if (recordList.length === 0) {
       alert('请先上传图片或从Tab1导入后再加底');
@@ -300,6 +420,12 @@ export default function Tab2Record({
     if (readyRowsCount === 0) {
       alert('请先上传图片并填写道具名后再加底');
       addRecordLog('加底失败：没有可处理的数据');
+      return;
+    }
+
+    if (!selectedGroupId) {
+      alert('请先选择底图组');
+      addRecordLog('加底失败：未选择底图组');
       return;
     }
 
@@ -323,27 +449,102 @@ export default function Tab2Record({
       }
 
       if (activeIdx === -1) {
-        // If everything is already processed, check count
         hideProgressBar();
         addRecordLog(`✓ 加底处理完成！已处理 ${readyRowsCount} 条记录`);
         alert(`加底处理完成！\n已生成 ${readyRowsCount} 张预览图`);
         return;
       }
 
-      setRecordList(prev => {
-        const updated = [...prev];
-        updated[activeIdx] = {
-          ...updated[activeIdx],
-          previewWithBase: updated[activeIdx].originalImage
+      const currentRow = recordList[activeIdx];
+      const selectedGroup = basemapGroups.find(g => g.id === selectedGroupId);
+      const basemapItem = selectedGroup?.thumbnails.find(item => item.color === currentRow.baseColor);
+
+      if (!basemapItem) {
+        addRecordLog(`⚠ 第 ${activeIdx + 1} 行：未找到底色"${currentRow.baseColor}"的底图，跳过加底`);
+        setRecordList(prev => {
+          const updated = [...prev];
+          updated[activeIdx] = {
+            ...updated[activeIdx],
+            previewWithBase: updated[activeIdx].originalImage
+          };
+          return updated;
+        });
+        processedCount++;
+        updateProgress(processedCount, readyRowsCount);
+        setTimeout(processNextBase, intervalTime);
+        return;
+      }
+
+      // 合成底图和原图
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      const baseImg = new Image();
+      baseImg.crossOrigin = 'anonymous';
+      baseImg.onload = () => {
+        canvas.width = baseImg.width;
+        canvas.height = baseImg.height;
+        
+        ctx!.drawImage(baseImg, 0, 0);
+        
+        const propImg = new Image();
+        propImg.onload = () => {
+          const scale = Math.min(canvas.width / propImg.width, canvas.height / propImg.height) * 0.8;
+          const scaledWidth = propImg.width * scale;
+          const scaledHeight = propImg.height * scale;
+          const x = (canvas.width - scaledWidth) / 2;
+          const y = (canvas.height - scaledHeight) / 2;
+          
+          ctx!.drawImage(propImg, x, y, scaledWidth, scaledHeight);
+          
+          const compositeDataUrl = canvas.toDataURL('image/png');
+          
+          setRecordList(prev => {
+            const updated = [...prev];
+            updated[activeIdx] = {
+              ...updated[activeIdx],
+              previewWithBase: compositeDataUrl
+            };
+            return updated;
+          });
+
+          processedCount++;
+          updateProgress(processedCount, readyRowsCount);
+          addRecordLog(`[${processedCount}/${readyRowsCount}] 第 ${activeIdx + 1} 行加底完成（${currentRow.baseColor}）`);
+
+          setTimeout(processNextBase, intervalTime);
         };
-        return updated;
-      });
-
-      processedCount++;
-      updateProgress(processedCount, readyRowsCount);
-      addRecordLog(`[${processedCount}/${readyRowsCount}] 第 ${activeIdx + 1} 行加底完成`);
-
-      setTimeout(processNextBase, intervalTime);
+        propImg.onerror = () => {
+          addRecordLog(`⚠ 第 ${activeIdx + 1} 行：原图加载失败，使用原图`);
+          setRecordList(prev => {
+            const updated = [...prev];
+            updated[activeIdx] = {
+              ...updated[activeIdx],
+              previewWithBase: updated[activeIdx].originalImage
+            };
+            return updated;
+          });
+          processedCount++;
+          updateProgress(processedCount, readyRowsCount);
+          setTimeout(processNextBase, intervalTime);
+        };
+        propImg.src = currentRow.originalImage!;
+      };
+      baseImg.onerror = () => {
+        addRecordLog(`⚠ 第 ${activeIdx + 1} 行：底图加载失败，使用原图`);
+        setRecordList(prev => {
+          const updated = [...prev];
+          updated[activeIdx] = {
+            ...updated[activeIdx],
+            previewWithBase: updated[activeIdx].originalImage
+          };
+          return updated;
+        });
+        processedCount++;
+        updateProgress(processedCount, readyRowsCount);
+        setTimeout(processNextBase, intervalTime);
+      };
+      baseImg.src = basemapItem.image;
     };
 
     setTimeout(processNextBase, intervalTime);
@@ -424,9 +625,51 @@ export default function Tab2Record({
       <input type="file" accept="image/*" ref={fileInputRef2} onChange={(e) => onCellFileChange(e, 'screenshot')} className="hidden" />
 
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">
+        {/* 底图组选择器和批量删除按钮 */}
+        <div className="mb-4 flex gap-3">
+          {basemapGroups.length > 0 && (
+            <div className="flex-1 p-3 bg-[#FAF8F4] border border-[#E9DFDB] rounded-lg">
+              <label className="block text-xs font-bold text-[#674b2d] mb-2">
+                选择底图组：
+              </label>
+              <select
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                className="w-full text-sm px-3 py-2 bg-white border border-[#DFD2BD] rounded-lg outline-none font-semibold text-[#674b2d] focus:border-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47]"
+              >
+                {basemapGroups.map(group => (
+                  <option key={group.id} value={group.id}>
+                    {group.name} ({group.thumbnails.length}个底色)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {/* 批量删除按钮区域 */}
+          {selectedRowIds.length > 0 && (
+            <div className="flex-1 p-3 bg-[#FFF5F5] border border-[#FED7D7] rounded-lg flex items-end">
+              <button
+                onClick={deleteSelectedRows}
+                className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 size={16} />
+                删除选中 ({selectedRowIds.length})
+              </button>
+            </div>
+          )}
+        </div>
+        
         <div className="overflow-auto flex-1 border border-[#DFD2BD]/40 rounded-xl relative scrollbar-thin">
           <RecordTable
             records={recordList}
+            availableColors={availableColors}
+            availableCategories={availableCategories}
+            basemapGroups={basemapGroups}
+            selectedGroupId={selectedGroupId}
+            selectedRowIds={selectedRowIds}
+            onToggleRowSelection={toggleRowSelection}
+            onToggleSelectAll={toggleSelectAll}
             onViewImage={viewRowImage}
             onUploadImage={handleCellImageUpload}
             onUpdateRow={(rowId, updates) => {
@@ -442,7 +685,6 @@ export default function Tab2Record({
                 addRecordLog(`第 ${rowId + 1} 行分类变更为: ${updates.category}`);
               }
             }}
-            onDeleteRow={deleteRow}
           />
         </div>
       </Card>
@@ -468,7 +710,7 @@ export default function Tab2Record({
             <div className="bg-white border border-[#DFD2BD]/60 rounded-xl shadow-sm overflow-hidden">
               <div className="p-3 bg-[#FAF8F4] border-b border-[#E9DFDB]">
                 <h3 className="text-xs font-bold text-[#674b2d]">
-                  大图预览 - 第 {selectedPart.rowId + 1} 行 {selectedPart.type === 'original' ? '道具原图' : '游戏截图'}
+                  大图预览 - 第 {selectedPart.rowId + 1} 行 {selectedPart.type === 'original' ? '道具icon' : '游戏截图'}
                 </h3>
               </div>
               <div className="p-4 flex items-center justify-center bg-white max-h-[300px]">
@@ -484,8 +726,6 @@ export default function Tab2Record({
           <div className="flex flex-col gap-2">
             <Button onClick={runAiMatch} icon={Sparkles} variant="primary" className="w-full">AI自动匹配</Button>
             <Button onClick={addWatermarkBase} icon={Layers} variant="success" className="w-full">一键加底</Button>
-            <Button onClick={onRecallMock} icon={RotateCcw} variant="secondary" className="w-full">撤回操作</Button>
-            <Button onClick={saveRecordsToLocal} icon={Save} variant="secondary" className="w-full">保存本地</Button>
             <Button onClick={exportBatchFiles} icon={Download} variant="warning" className="w-full">导出文件</Button>
           </div>
         </div>

@@ -13,7 +13,7 @@ export function processImageFiles(
   // 过滤掉重复的文件
   const uniqueFiles = imageFiles.filter(file => {
     const parseResult = parseFileName(file.name);
-    return !existingNames.has(parseResult.originalName);
+    return !existingNames.has(parseResult.name);
   });
 
   // 解析文件信息

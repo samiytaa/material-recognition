@@ -18,7 +18,8 @@ export function exportParseRecordToJson(props: PropItem[]): void {
     解析后名称: prop.displayName,
     类型: prop.type === 'furniture' ? '家具' : '其他道具',
     分类: prop.category,
-    男主归属: prop.maleLead || '无',
+    归属类型: prop.ownership.type === 'male_lead' ? '男主' : prop.ownership.type === 'spy' ? '密探' : '无',
+    归属名称: prop.ownership.name || '无',
     是否初见日: prop.isGrowthProp ? '是' : '否',
     是否地板: prop.isFloor ? '是' : '否',
     分类路径: prop.categoryPath?.join(' > ') || '未分类'

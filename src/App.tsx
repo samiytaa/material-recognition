@@ -100,8 +100,59 @@ export default function App() {
     if (localProps) {
       try {
         const parsed = JSON.parse(localProps);
-        setPropsList(parsed);
-        addLog(`从本地存储加载了 ${parsed.length} 个历史道具（含图片数据）`);
+        
+        // 数据迁移：检查是否是旧格式
+        const migratedData = parsed.map((prop: any) => {
+          // 如果已经是新格式，直接返回
+          if (prop.classification && prop.ownership) {
+            return prop;
+          }
+          
+          // 旧格式迁移到新格式
+          const ownershipType = prop.maleLead ? 'male_lead' : 'none';
+          const ownership = {
+            type: ownershipType,
+            name: prop.maleLead || null,
+            code: null
+          };
+          
+          const classification = {
+            type: prop.type || 'other',
+            category: prop.category || '其他',
+            categoryPath: prop.categoryPath || ['其他'],
+            furnitureDetails: prop.type === 'furniture' ? {
+              scene: 'indoor' as const,
+              isFloor: prop.isFloor || false,
+              isGrowthProp: prop.isGrowthProp || false,
+              isSuit: false
+            } : undefined
+          };
+          
+          return {
+            name: prop.name,
+            displayName: prop.displayName,
+            image: prop.image,
+            classification,
+            ownership,
+            // 兼容字段
+            type: prop.type || 'other',
+            category: prop.category || '其他',
+            categoryPath: prop.categoryPath || ['其他'],
+            maleLead: prop.maleLead || null,
+            isGrowthProp: prop.isGrowthProp || false,
+            isFloor: prop.isFloor || false
+          };
+        });
+        
+        setPropsList(migratedData);
+        
+        // 如果进行了迁移，保存新格式
+        if (JSON.stringify(parsed) !== JSON.stringify(migratedData)) {
+          localStorage.setItem('savedProps', JSON.stringify(migratedData));
+          addLog(`从本地存储加载了 ${migratedData.length} 个历史道具（已自动迁移到新格式）`);
+        } else {
+          addLog(`从本地存储加载了 ${migratedData.length} 个历史道具（含图片数据）`);
+        }
       } catch (err) {
         console.error(err);
         addLog('加载本地道具数据失败');
@@ -137,6 +188,63 @@ export default function App() {
       }
     }
   }, []);
+
+  // 自动同步 Tab1 的道具数据到 Tab2
+  useEffect(() => {
+    const validProps = propsList.filter(p => p.image !== null);
+    
+    if (validProps.length === 0) {
+      return;
+    }
+
+    // 为每个道具创建或更新 Tab2 中的记录
+    setRecordList(prev => {
+      // 创建一个映射，记录已存在的道具名称对应的行索引
+      const existingPropsMap = new Map<string, number>();
+      prev.forEach((row, index) => {
+        if (row.propName) {
+          existingPropsMap.set(row.propName, index);
+        }
+      });
+
+      // 收集需要更新的行和需要新增的行
+      const updatedRows = [...prev];
+      const newRows: RecordRow[] = [];
+
+      validProps.forEach((prop) => {
+        const existingIndex = existingPropsMap.get(prop.displayName);
+        
+        if (existingIndex !== undefined) {
+          // 更新已存在的行（只更新 originalImage，保留其他用户编辑的内容）
+          updatedRows[existingIndex] = {
+            ...updatedRows[existingIndex],
+            originalImage: prop.image,
+            propName: prop.displayName,
+            // 保留用户已设置的底色、分类等
+          };
+        } else {
+          // 创建新行
+          newRows.push({
+            id: Date.now() + Math.random(),
+            originalImage: prop.image,
+            screenshot: null,
+            propName: prop.displayName,
+            baseColor: '金',
+            category: prop.category || '家具类',
+            previewWithBase: null,
+            outputName: `${prop.displayName}_金`
+          });
+        }
+      });
+
+      // 如果有新增的行，记录日志
+      if (newRows.length > 0) {
+        addRecordLog(`✓ 自动同步：从 Tab1 导入 ${newRows.length} 个新道具`);
+      }
+
+      return [...updatedRows, ...newRows];
+    });
+  }, [propsList]);
 
   // 保存 API 配置
   const saveApiConfig = () => {
@@ -383,25 +491,6 @@ export default function App() {
                   addLog={addLog}
                   clearLogs={clearLogs}
                   clearAllProps={clearAllProps}
-                  onImportToTab2={(images) => {
-                    // 将图片导入到 Tab2 的道具原图列，直接创建新条目
-                    setRecordList(prev => {
-                      const newRows = images.map((img, index) => ({
-                        id: prev.length + index,
-                        originalImage: img.image,
-                        screenshot: null,
-                        propName: img.name,
-                        baseColor: '金',
-                        category: '家具类',
-                        previewWithBase: null,
-                        outputName: `${img.name}_金`
-                      }));
-                      return [...prev, ...newRows];
-                    });
-                    // 切换到 Tab2
-                    setActiveTab('tab2');
-                    addRecordLog(`从 Tab1 导入了 ${images.length} 张图片，创建了 ${images.length} 个新条目`);
-                  }}
                 />
               </motion.div>
             ) : activeTab === 'tab2' ? (

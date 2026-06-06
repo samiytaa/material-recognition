@@ -1,24 +1,103 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { RecordRow } from '../../types';
 
 interface RecordTableRowProps {
   row: RecordRow;
   rowIndex: number;
+  availableColors: string[];
+  availableCategories: string[];
+  basemapGroups: MapGroup[];
+  selectedGroupId: string;
+  isSelected: boolean;
+  onToggleSelection: (rowId: number) => void;
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
-  onDeleteRow: (rowId: number) => void;
+}
+
+interface BasemapItem {
+  id: string;
+  image: string;
+  color: string;
+}
+
+interface MapGroup {
+  id: string;
+  name: string;
+  thumbnails: BasemapItem[];
 }
 
 export default function RecordTableRow({
   row,
   rowIndex,
+  availableColors,
+  availableCategories,
+  basemapGroups,
+  selectedGroupId,
+  isSelected,
+  onToggleSelection,
   onViewImage,
   onUploadImage,
   onUpdateRow,
-  onDeleteRow,
 }: RecordTableRowProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // 当原图、底色或底图组改变时，自动生成预览
+  useEffect(() => {
+    if (!row.originalImage || !row.baseColor || !selectedGroupId) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const selectedGroup = basemapGroups.find(g => g.id === selectedGroupId);
+    const basemapItem = selectedGroup?.thumbnails.find(item => item.color === row.baseColor);
+
+    if (!basemapItem) {
+      setPreviewUrl(row.originalImage); // 如果找不到底图，显示原图
+      return;
+    }
+
+    // 合成底图和原图
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const baseImg = new Image();
+    baseImg.crossOrigin = 'anonymous';
+    baseImg.onload = () => {
+      canvas.width = baseImg.width;
+      canvas.height = baseImg.height;
+
+      // 绘制底图
+      ctx!.drawImage(baseImg, 0, 0);
+
+      // 加载并绘制原图
+      const propImg = new Image();
+      propImg.onload = () => {
+        // 将原图居中绘制在底图上
+        const scale = Math.min(canvas.width / propImg.width, canvas.height / propImg.height) * 0.8;
+        const scaledWidth = propImg.width * scale;
+        const scaledHeight = propImg.height * scale;
+        const x = (canvas.width - scaledWidth) / 2;
+        const y = (canvas.height - scaledHeight) / 2;
+
+        ctx!.drawImage(propImg, x, y, scaledWidth, scaledHeight);
+
+        // 导出合成结果
+        const compositeDataUrl = canvas.toDataURL('image/png');
+        setPreviewUrl(compositeDataUrl);
+      };
+      propImg.onerror = () => {
+        setPreviewUrl(row.originalImage); // 加载失败，使用原图
+      };
+      propImg.src = row.originalImage;
+    };
+    baseImg.onerror = () => {
+      setPreviewUrl(row.originalImage); // 加载失败，使用原图
+    };
+    baseImg.src = basemapItem.image;
+  }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups]);
+
   return (
     <tr className="hover:bg-[#FDFBF8]/80 group transition-all">
       {/* 删除按钮列 */}
@@ -32,7 +111,7 @@ export default function RecordTableRow({
         </button>
       </td>
 
-      {/* 道具原图 */}
+      {/* 道具icon */}
       <td className="p-2 border border-[#F2ECE5] text-center">
         <div 
           onClick={() => {
@@ -130,7 +209,7 @@ export default function RecordTableRow({
           }}
           className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
         >
-          {['金', '紫', '蓝', '绿', '咖'].map(color => (
+          {availableColors.map(color => (
             <option key={color} value={color}>{color}</option>
           ))}
         </select>
@@ -146,7 +225,7 @@ export default function RecordTableRow({
           }}
           className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
         >
-          {['家具类', '其他类'].map(c => (
+          {availableCategories.map(c => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
@@ -156,18 +235,18 @@ export default function RecordTableRow({
       <td className="p-2 border border-[#F2ECE5]">
         <div 
           className={`preview-thumbnail w-full h-16 rounded-lg border flex items-center justify-center ${
-            row.previewWithBase 
+            previewUrl 
             ? 'border-gold-shiny/50' 
             : 'border-[#F2ECE5] bg-[#FDFBF9]'
           }`}
-          style={row.previewWithBase ? {
-            backgroundImage: `url(${row.previewWithBase})`,
+          style={previewUrl ? {
+            backgroundImage: `url(${previewUrl})`,
             backgroundSize: 'contain',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat'
           } : undefined}
         >
-          {!row.previewWithBase && (
+          {!previewUrl && (
             <span className="text-[9px] font-bold text-[#C5B198]">待加底</span>
           )}
         </div>
