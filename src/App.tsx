@@ -326,7 +326,7 @@ export default function App() {
               <span className="text-base font-serif">鸢</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-serif font-bold text-gold-deep tracking-wider">入库道具素材管理面板</span>
+              <span className="text-xs font-serif font-bold text-gold-deep tracking-wider">道具素材管理面板</span>
               <span className="text-[8px] font-mono font-medium text-[#C5B198] tracking-widest uppercase leading-none">WIKI INVENTORY CONTROL</span>
             </div>
           </div>

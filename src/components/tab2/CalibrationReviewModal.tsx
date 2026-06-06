@@ -30,9 +30,13 @@ function ImageReviewPane({
   emptyText: string;
 }) {
   const [zoom, setZoom] = React.useState(100);
+  const [position, setPosition] = React.useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
 
   React.useEffect(() => {
     setZoom(100);
+    setPosition({ x: 0, y: 0 });
   }, [imageUrl]);
 
   const handleWheelZoom = (event: React.WheelEvent<HTMLDivElement>) => {
@@ -46,13 +50,40 @@ function ImageReviewPane({
     ));
   };
 
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageUrl || zoom <= 100) return;
+    event.preventDefault();
+    setIsDragging(true);
+    setDragStart({
+      x: event.clientX - position.x,
+      y: event.clientY - position.y
+    });
+  };
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    event.preventDefault();
+    setPosition({
+      x: event.clientX - dragStart.x,
+      y: event.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
   const imageScale = zoom / 100;
 
   return (
     <div className="min-h-0 flex flex-col rounded-lg border border-[#E9DFDB] bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-[#F2ECE5] px-3 py-2">
         <div className="text-xs font-bold text-[#674b2d]">{title}</div>
-        <div className="flex items-center gap-2" title="在图片区域滚动鼠标滚轮缩放">
+        <div className="flex items-center gap-2" title="滚动鼠标滚轮缩放 / 缩放后可拖拽图片">
           <ZoomOut size={14} className="text-[#8B7355]" />
           <ZoomIn size={14} className="text-[#8B7355]" />
           <span className="w-10 text-right text-[10px] font-bold text-[#8B7355]">{zoom}%</span>
@@ -62,13 +93,25 @@ function ImageReviewPane({
       <div
         className="flex min-h-[260px] flex-1 items-center justify-center overflow-auto bg-[#FAF8F4] p-4"
         onWheel={handleWheelZoom}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        style={{ 
+          cursor: imageUrl && zoom > 100 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+          userSelect: 'none'
+        }}
       >
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={title}
-            style={{ transform: `scale(${imageScale})` }}
-            className="max-h-[52vh] max-w-full origin-center rounded border border-[#E9DFDB]/60 object-contain shadow-sm"
+            style={{ 
+              transform: `scale(${imageScale}) translate(${position.x / imageScale}px, ${position.y / imageScale}px)`,
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+            }}
+            className="max-h-[52vh] max-w-full origin-center rounded border border-[#E9DFDB]/60 object-contain shadow-sm pointer-events-none"
+            draggable={false}
           />
         ) : (
           <div className="text-xs font-bold text-[#C5B198]">{emptyText}</div>
@@ -159,6 +202,13 @@ export default function CalibrationReviewModal({
     }
   }, [isOpen]);
 
+  // 已确认状态时自动关闭选择面板
+  React.useEffect(() => {
+    if (iconStatus === 'confirmed' && showReplacePanel) {
+      setShowReplacePanel(false);
+    }
+  }, [iconStatus, showReplacePanel]);
+
   // 自动隐藏"最后一行"提示
   React.useEffect(() => {
     if (showLastRowTip) {
@@ -219,30 +269,61 @@ export default function CalibrationReviewModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#3C353B]/70 p-4 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border-2 border-[#DFD2BD] bg-[#FAF7F2] shadow-2xl decorative-corners relative">
-        <div className="flex items-center justify-between gap-4 border-b border-[#DFD2BD]/70 bg-gradient-to-r from-[#7A4E3A] via-[#B9704D] to-[#7A4E3A] px-5 py-4 text-white">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-bold tracking-widest text-[#FFF2C5]">
-              校对模式
-            </div>
-            <div className="mt-1 truncate text-xs text-white/80">
-              {row?.propName || row?.screenshotOriginalName || row?.originalImageFileName || '未命名条目'}
-            </div>
-          </div>
+        <div className="border-b border-[#DFD2BD]/70 bg-gradient-to-r from-[#7A4E3A] via-[#B9704D] to-[#7A4E3A] px-5 py-4 text-white">
+          <div className="flex items-center justify-between gap-4">
+            {/* 左侧：校对模式标题 + 快速校对开关 */}
+            <div className="flex items-center gap-4">
+              <div className="text-sm font-bold tracking-widest text-[#FFF2C5]">
+                校对模式
+              </div>
 
-          <div className="flex items-center gap-3">
-            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold text-[#FFF2C5]">
-              {rows.length > 0 ? `${currentIndex + 1} / ${rows.length}` : '0 / 0'}
-            </span>
-            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold text-white">
-              {statusLabel}
-            </span>
-            <button
-              onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
-              title="关闭"
-            >
-              <X size={18} />
-            </button>
+              {/* 快速校对模式开关 - 精致设计 */}
+              <div className="border-l border-white/20 pl-4 hidden sm:block">
+                <label className="inline-flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-lg border border-white/30 bg-white/5 hover:bg-white/10 hover:border-white/40 transition-all">
+                  <div className="relative flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={quickReviewMode}
+                      onChange={(e) => setQuickReviewMode(e.target.checked)}
+                      className="peer sr-only"
+                    />
+                    <div className="h-4 w-4 rounded border-2 border-white/50 bg-white/10 transition-all peer-checked:border-[#FFF2C5] peer-checked:bg-[#FFF2C5] group-hover:border-white/70 shadow-sm"></div>
+                    <CheckCircle 
+                      size={10} 
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[#7A4E3A] opacity-0 transition-opacity peer-checked:opacity-100" 
+                      strokeWidth={3}
+                    />
+                  </div>
+                  <span className="text-xs text-white/90 group-hover:text-white transition-colors select-none whitespace-nowrap font-medium">
+                    快速校对
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* 中间：文件名 */}
+            <div className="absolute left-1/2 -translate-x-1/2 max-w-md">
+              <div className="truncate text-base font-bold text-white text-center">
+                {row?.propName || row?.screenshotOriginalName || row?.originalImageFileName || '未命名条目'}
+              </div>
+            </div>
+
+            {/* 右侧：状态标签 */}
+            <div className="flex items-center gap-3">
+              <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold text-[#FFF2C5]">
+                {rows.length > 0 ? `${currentIndex + 1} / ${rows.length}` : '0 / 0'}
+              </span>
+              <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold text-white">
+                {statusLabel}
+              </span>
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+                title="关闭"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -260,35 +341,28 @@ export default function CalibrationReviewModal({
             />
             
             {/* 从 Tab1 选择 icon 按钮 */}
-            <button
-              onClick={() => setShowReplacePanel(!showReplacePanel)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#DFD2BD] bg-[#F2ECE4] px-4 py-2 text-xs font-bold text-[#674b2d] transition hover:bg-[#EADBCC]"
-            >
-              <ImageIcon size={14} />
-              {showReplacePanel ? '关闭选择面板' : '从Tab1选择icon'}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowReplacePanel(!showReplacePanel)}
+                disabled={iconStatus === 'confirmed'}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-[#DFD2BD] bg-[#F2ECE4] px-4 py-2 text-xs font-bold text-[#674b2d] transition hover:bg-[#EADBCC] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#F2ECE4]"
+                title={iconStatus === 'confirmed' ? '请先退回再选择icon' : ''}
+              >
+                <ImageIcon size={14} />
+                {showReplacePanel ? '关闭选择面板' : '从Tab1选择icon'}
+              </button>
+              
+              {/* 已确认状态提示 */}
+              {iconStatus === 'confirmed' && (
+                <div className="text-[10px] text-[#A45E00] text-center bg-[#FFF8E1] border border-[#F3C16E] rounded px-2 py-1">
+                  已确认的icon需先退回才能重新选择
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="border-t border-[#DFD2BD]/70 bg-[#FAF8F4] px-5 py-4">
-          {/* 快速校对模式开关 */}
-          <div className="mb-3 flex items-center justify-center gap-2">
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={quickReviewMode}
-                onChange={(e) => setQuickReviewMode(e.target.checked)}
-                className="h-4 w-4 rounded border-[#DFD2BD] text-[#0F9F6E] focus:ring-2 focus:ring-[#0F9F6E]/30 focus:ring-offset-0 cursor-pointer"
-              />
-              <span className="text-xs font-bold text-[#674b2d]">
-                快速校对模式
-              </span>
-              <span className="text-[10px] text-[#8B6F47]">
-                （确认/退回后自动跳转到下一行）
-              </span>
-            </label>
-          </div>
-
           {/* 最后一行提示 */}
           {showLastRowTip && (
             <div className="mb-3 flex items-center justify-center">

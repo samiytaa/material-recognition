@@ -22,6 +22,9 @@ export default function PropGrid({
         if (!prop.image) return null;
         
         const isSelected = previewIndex === idx;
+        const tags = prop.tags || [];
+        const isConfirmed = tags.includes('已确认');
+        const hasAiMatch = !isConfirmed && tags.includes('AI匹配');
         
         // 确定徽章显示
         let badge: string | undefined;
@@ -52,15 +55,15 @@ export default function PropGrid({
               index={displayIdx}
               isSelected={isSelected}
             />
-            {prop.tags && prop.tags.length > 0 && (
-              <div className="absolute left-1.5 top-1.5 flex flex-col gap-1 pointer-events-none">
-                {prop.tags.includes('AI匹配') && (
+            {tags.length > 0 && (
+              <div className="absolute bottom-7 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
+                {hasAiMatch && (
                   <span className="inline-flex items-center gap-1 rounded bg-indigo-600/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
                     <Bot size={10} />
                     AI匹配
                   </span>
                 )}
-                {prop.tags.includes('已确认') && (
+                {isConfirmed && (
                   <span className="inline-flex items-center gap-1 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
                     <CheckCircle size={10} />
                     已确认

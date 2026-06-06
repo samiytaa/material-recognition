@@ -3,7 +3,7 @@ import { Download, RefreshCw } from 'lucide-react';
 import { IconLibraryItem } from '../../hooks/useIconLibrary';
 
 interface CompositePanelProps {
-  canvasRef: React.RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
   compositeFilename: string;
   recognizedOcrName: string;
   selectedBaseMapColor: string | null;

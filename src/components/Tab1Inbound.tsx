@@ -183,7 +183,7 @@ export default function Tab1Inbound({
 
     updatePropTags(
       previewIndex,
-      (tags = []) => Array.from(new Set([...tags, 'AI匹配' as const, '已确认' as const])),
+      (tags = []) => Array.from(new Set([...tags.filter(tag => tag !== 'AI匹配'), '已确认' as const])),
       `已确认AI匹配icon：${prop.displayName}`
     );
   };
