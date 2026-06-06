@@ -70,7 +70,7 @@ export default function RecordSidePanel({
               value={selectedScreenshotCategory}
               onChange={(e) => onScreenshotCategoryChange(e.target.value as ScreenshotPrimaryCategory)}
               className="w-full rounded-lg border border-[#DFD2BD]/60 bg-white px-3 py-2 text-xs font-medium text-[#674b2d] outline-none focus:border-[#8B6F47] focus:ring-2 focus:ring-[#8B6F47]/10 transition-all"
-              title="上传截图时选择一级分类，AI识别时只匹配该分类Icon"
+              title="无分类会识别全部Icon，其余分类只匹配对应分类Icon"
             >
               {SCREENSHOT_CATEGORY_OPTIONS.map(category => (
                 <option key={category} value={category}>{category}</option>

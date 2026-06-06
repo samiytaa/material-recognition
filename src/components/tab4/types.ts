@@ -5,6 +5,13 @@ export interface MappingEntry {
   value: string;
 }
 
+export type FurnitureCategoryType = 'outdoorCats' | 'indoorCats' | 'floorCats';
+
+export interface FurnitureMappingEntry extends MappingEntry {
+  categoryType: FurnitureCategoryType;
+  sourceIndex: number;
+}
+
 export interface OwnershipRule {
   category: string;
   defaultOwnership: OwnershipValue;
@@ -15,12 +22,18 @@ export interface OwnershipRule {
 export type MappingType =
   | 'maleLeads'
   | 'spyNames'
+  | 'furnitureCats'
   | 'outdoorCats'
   | 'indoorCats'
   | 'floorCats'
+  | 'avatarCats'
+  | 'activityCats'
+  | 'otherCats'
   | 'ownershipRules';
 
-export type MappingListType = Exclude<MappingType, 'ownershipRules'>;
+export type MappingListType = Exclude<MappingType, 'ownershipRules' | 'furnitureCats'>;
+
+export type EditableRuleType = MappingListType | 'ownershipRules';
 
 export type OwnershipValue = 'male_lead' | 'spy' | 'none' | 'mixed';
 
@@ -30,6 +43,9 @@ export interface RulesData {
   outdoorCats: MappingEntry[];
   indoorCats: MappingEntry[];
   floorCats: MappingEntry[];
+  avatarCats: MappingEntry[];
+  activityCats: MappingEntry[];
+  otherCats: MappingEntry[];
   ownershipRules: OwnershipRule[];
 }
 
@@ -47,7 +63,7 @@ export type Notice = {
 };
 
 export type EditingEntry = {
-  type: MappingType;
+  type: EditableRuleType;
   index: number;
 } | null;
 

@@ -22,6 +22,37 @@
     "diban": "地板",
     "outdoor_diban": "地面/水面"
   },
+  "头像类映射": {
+    "mitantouxiang": "密探头像",
+    "hunhuntouxiang": "魂魂头像",
+    "qqrentouxiang": "QQ人头像",
+    "maorongrongtouxiang": "猫绒绒",
+    "gourongrongtouxiang": "狗绒绒",
+    "teshurongrongtouxiang": "特殊绒绒"
+  },
+  "活动类映射": {
+    "hunshengychuanxilie": "魂生一串系列",
+    "hunshengychuanxilie2": "魂生一串系列2",
+    "qixihuodong": "七夕活动",
+    "rougekehuodong": "肉鸽",
+    "gonggengnanyanghuodong": "躬耕南阳",
+    "haidaopioliuhuodong": "海岛漂流",
+    "yizhoumianhuodong": "一周年",
+    "banzhoumianhuodong": "半周年"
+  },
+  "其他类映射": {
+    "zhujiemianbg": "主界面背景",
+    "zhujiejianyinyue": "主界面音乐",
+    "fudie": "符牒",
+    "huodong": "活动",
+    "libao": "礼包",
+    "liuyinxia": "留音匣",
+    "rizhi": "日志",
+    "touxiangkuang": "头像框",
+    "zidingyitouxiangkuang": "自定义头像框",
+    "jiajudaoju": "家具道具",
+    "jianxia": "笺匣"
+  },
   "密探名映射": {
     "achan": "阿蝉",
     "achan_huanfu-1": "阿蝉·雾绡",

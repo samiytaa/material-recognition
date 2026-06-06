@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bot, CheckCircle, RotateCcw, ZoomIn, Trash2 } from 'lucide-react';
 import { RecordRow, ScreenshotPrimaryCategory } from '../../types';
-import { SCREENSHOT_CATEGORY_OPTIONS, getIconPrimaryCategory } from '../../utils/tab2Helper';
+import { DEFAULT_SCREENSHOT_CATEGORY, SCREENSHOT_CATEGORY_OPTIONS, getIconPrimaryCategory } from '../../utils/tab2Helper';
 import { MapGroup } from '../../hooks';
 
 interface RecordTableRowProps {
@@ -367,7 +367,7 @@ export default function RecordTableRow({
         <td className="p-2 border border-[#F2ECE5]">
           {!row.originalImage && row.screenshot ? (
             <select
-              value={row.screenshotCategory || '其他'}
+              value={row.screenshotCategory || DEFAULT_SCREENSHOT_CATEGORY}
               onChange={(e) => {
                 onUpdateRow(rowIndex, {
                   screenshotCategory: e.target.value as ScreenshotPrimaryCategory
@@ -375,7 +375,7 @@ export default function RecordTableRow({
               }}
               onClick={(e) => e.stopPropagation()}
               className="w-full text-center text-xs px-1 py-1.5 bg-white border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
-              title="选择截图一级分类，AI识别时只在该分类Icon池中匹配"
+              title="无分类会识别全部Icon，其余分类只匹配对应分类Icon"
             >
               {SCREENSHOT_CATEGORY_OPTIONS.map(category => (
                 <option key={category} value={category}>{category}</option>

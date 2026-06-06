@@ -57,10 +57,10 @@ export function RulesToolbar({
 
         <button
           onClick={onShowTest}
-          className="px-3 py-1.5 bg-[#4F73C7] hover:bg-[#3E5FA3] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all"
+          className="px-3 py-1.2 bg-gradient-to-r from-[#E8F0FC] to-[#D6E4F8] hover:from-[#D6E4F8] hover:to-[#C5D8F3] text-[#4F73C7] border border-[#C5D8F3] rounded-lg text-xs font-bold tracking-wider hover:shadow-xs transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center gap-1.5 select-none leading-normal"
           title="测试文件名解析"
         >
-          <Search size={12} />
+          <Search size={13} className="text-[#4F73C7]" />
           测试解析
         </button>
 

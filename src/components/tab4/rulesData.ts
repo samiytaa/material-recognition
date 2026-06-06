@@ -12,6 +12,9 @@ export function createDefaultRulesData(): RulesData {
     outdoorCats: configToEntries(parseConfig['户外分类']),
     indoorCats: configToEntries(parseConfig['户内分类']),
     floorCats: configToEntries(parseConfig['地板分类']),
+    avatarCats: configToEntries(parseConfig['头像类映射'] || {}),
+    activityCats: configToEntries(parseConfig['活动类映射'] || {}),
+    otherCats: configToEntries(parseConfig['其他类映射'] || {}),
     ownershipRules: Object.entries(ownershipRulesConfig.categoryOwnershipRules).map(([category, rule]: [string, any]) => ({
       category,
       defaultOwnership: rule.defaultOwnership,
@@ -30,6 +33,16 @@ export function readSavedRulesData(): RulesData {
     if (!parsed.ownershipRules) {
       parsed.ownershipRules = createDefaultRulesData().ownershipRules;
     }
+    // 确保新增的字段存在
+    if (!parsed.avatarCats) {
+      parsed.avatarCats = [];
+    }
+    if (!parsed.activityCats) {
+      parsed.activityCats = [];
+    }
+    if (!parsed.otherCats) {
+      parsed.otherCats = [];
+    }
     return parsed;
   } catch (error) {
     console.error('读取自定义规则失败:', error);
@@ -44,6 +57,9 @@ export function importRulesData(imported: any): RulesData {
     outdoorCats: Object.entries(imported['户外分类'] || {}).map(([key, value]) => ({ key, value: value as string })),
     indoorCats: Object.entries(imported['户内分类'] || {}).map(([key, value]) => ({ key, value: value as string })),
     floorCats: Object.entries(imported['地板分类'] || {}).map(([key, value]) => ({ key, value: value as string })),
+    avatarCats: Object.entries(imported['头像类映射'] || {}).map(([key, value]) => ({ key, value: value as string })),
+    activityCats: Object.entries(imported['活动类映射'] || {}).map(([key, value]) => ({ key, value: value as string })),
+    otherCats: Object.entries(imported['其他类映射'] || {}).map(([key, value]) => ({ key, value: value as string })),
     ownershipRules: Object.entries(imported.categoryOwnershipRules || {}).map(([category, rule]: [string, any]) => ({
       category,
       defaultOwnership: rule.defaultOwnership,
@@ -60,6 +76,9 @@ export function exportRulesData(rulesData: RulesData) {
     '户外分类': Object.fromEntries(rulesData.outdoorCats.map((entry) => [entry.key, entry.value])),
     '户内分类': Object.fromEntries(rulesData.indoorCats.map((entry) => [entry.key, entry.value])),
     '地板分类': Object.fromEntries(rulesData.floorCats.map((entry) => [entry.key, entry.value])),
+    '头像类映射': Object.fromEntries(rulesData.avatarCats.map((entry) => [entry.key, entry.value])),
+    '活动类映射': Object.fromEntries(rulesData.activityCats.map((entry) => [entry.key, entry.value])),
+    '其他类映射': Object.fromEntries(rulesData.otherCats.map((entry) => [entry.key, entry.value])),
     categoryOwnershipRules: Object.fromEntries(
       rulesData.ownershipRules.map((rule) => [
         rule.category,

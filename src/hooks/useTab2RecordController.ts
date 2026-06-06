@@ -14,6 +14,7 @@ import {
   createUniqueFileNameGenerator,
   compositeImageWithBasemap,
   getReadyRowsCount,
+  DEFAULT_SCREENSHOT_CATEGORY,
   SCREENSHOT_CATEGORY_OPTIONS,
   getIconPrimaryCategory
 } from '../utils/tab2Helper';
@@ -65,7 +66,7 @@ export function useTab2RecordController({
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const targetCellRef = useRef<{ rowId: number; type: 'original' | 'screenshot' } | null>(null);
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
-  const [selectedScreenshotCategory, setSelectedScreenshotCategory] = useState<ScreenshotPrimaryCategory>('家具');
+  const [selectedScreenshotCategory, setSelectedScreenshotCategory] = useState<ScreenshotPrimaryCategory>(DEFAULT_SCREENSHOT_CATEGORY);
   const [exportModeModalOpen, setExportModeModalOpen] = useState(false);
 
   const savePropsToLocal = (props: PropItem[]) => {
@@ -226,7 +227,7 @@ export function useTab2RecordController({
     }
 
     setRecordList(prev => [...prev, ...newRecords]);
-    addRecordLog(`✓ 成功添加 ${newRecords.length} 个${selectedScreenshotCategory}分类条目到表格（待识别）`);
+    addRecordLog(`✓ 成功添加 ${newRecords.length} 个${selectedScreenshotCategory}条目到表格（待识别）`);
     alert(`成功上传 ${newRecords.length} 张截图！${skippedDuplicateFiles.length > 0 ? `\n已跳过重复：${skippedDuplicateFiles.length} 张` : ''}${overLimitCount > 0 ? `\n因条目上限 ${MAX_TAB2_RECORDS} 个，已跳过超出部分：${overLimitCount} 张` : ''}\n分类：${selectedScreenshotCategory}\n\n已生成 ${newRecords.length} 个新条目，请点击【一键识别】进行AI识别和icon匹配。`);
   };
 
@@ -669,22 +670,24 @@ export function useTab2RecordController({
 
     const categoryStats = SCREENSHOT_CATEGORY_OPTIONS
       .map(category => {
-        const rowCount = unprocessedRecords.filter(({ record }) => (record.screenshotCategory || '其他') === category).length;
+        const rowCount = unprocessedRecords.filter(({ record }) => (record.screenshotCategory || DEFAULT_SCREENSHOT_CATEGORY) === category).length;
         if (rowCount === 0) return null;
-        const iconCount = iconLibrary.filter(icon => icon.primaryCategory === category).length;
+        const iconCount = category === DEFAULT_SCREENSHOT_CATEGORY
+          ? iconLibrary.length
+          : iconLibrary.filter(icon => icon.primaryCategory === category).length;
         return `${category}: ${rowCount}条/${iconCount}个候选`;
       })
       .filter(Boolean)
       .join('\n');
 
-    if (!confirm(`检测到 ${unprocessedRecords.length} 个待识别条目\n将按截图一级分类限定Icon池：\n${categoryStats}\n\n确定执行吗？`)) {
+    if (!confirm(`检测到 ${unprocessedRecords.length} 个待识别条目\n无分类将使用全部Icon候选，其余条目按截图一级分类限定Icon池：\n${categoryStats}\n\n确定执行吗？`)) {
       return;
     }
 
     addRecordLog(`========================================`);
     addRecordLog(`[开始] AI识别 ${unprocessedRecords.length} 个待识别条目`);
     const confirmedIconCount = propsList.filter(prop => prop.image && (prop.tags || []).includes('已确认')).length;
-    addRecordLog(`[配置] icon库: Tab1中的 ${iconLibrary.length} 个候选，将按截图一级分类筛选（已跳过 ${confirmedIconCount} 个已确认icon）`);
+    addRecordLog(`[配置] icon库: Tab1中的 ${iconLibrary.length} 个候选；无分类使用全部候选，其余按截图一级分类筛选（已跳过 ${confirmedIconCount} 个已确认icon）`);
     addRecordLog(`[配置] 批次大小: 最多5个icon/批次`);
     addRecordLog(`[流程] 识别截图 → 匹配icon → 填充信息`);
 
@@ -704,14 +707,19 @@ export function useTab2RecordController({
       addRecordLog(`[处理] 开始处理第 ${recordIndex + 1} 行: ${screenshotName}`);
 
       try {
-        const targetCategory = record.screenshotCategory || '其他';
-        const categoryIconLibrary = iconLibrary.filter(icon => icon.primaryCategory === targetCategory);
+        const targetCategory = record.screenshotCategory || DEFAULT_SCREENSHOT_CATEGORY;
+        const categoryIconLibrary = targetCategory === DEFAULT_SCREENSHOT_CATEGORY
+          ? iconLibrary
+          : iconLibrary.filter(icon => icon.primaryCategory === targetCategory);
 
         if (categoryIconLibrary.length === 0) {
-          failedList.push(`第 ${recordIndex + 1} 行 (原因: ${targetCategory}分类没有可用icon)`);
+          const emptyReason = targetCategory === DEFAULT_SCREENSHOT_CATEGORY
+            ? '没有可用icon'
+            : `${targetCategory}分类没有可用icon`;
+          failedList.push(`第 ${recordIndex + 1} 行 (原因: ${emptyReason})`);
           failCount++;
-          addRecordLog(`[处理] ✗ 第 ${recordIndex + 1} 行: ${targetCategory}分类没有可用icon`);
-          updateRecognitionProgress(i + 1, successCount, failCount, `已完成: ${screenshotName}`, `✗ ${screenshotName}: ${targetCategory}分类无候选`);
+          addRecordLog(`[处理] ✗ 第 ${recordIndex + 1} 行: ${emptyReason}`);
+          updateRecognitionProgress(i + 1, successCount, failCount, `已完成: ${screenshotName}`, `✗ ${screenshotName}: ${emptyReason}`);
           continue;
         }
 

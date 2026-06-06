@@ -6,7 +6,17 @@ import type { ScreenshotPrimaryCategory } from '../types';
  * AI识别相关辅助函数
  */
 
-export const SCREENSHOT_CATEGORY_OPTIONS: ScreenshotPrimaryCategory[] = ['家具', '男主', '密探', '头像', '活动', '其他'];
+export const DEFAULT_SCREENSHOT_CATEGORY: ScreenshotPrimaryCategory = '无分类';
+
+export const SCREENSHOT_CATEGORY_OPTIONS: ScreenshotPrimaryCategory[] = [
+  DEFAULT_SCREENSHOT_CATEGORY,
+  '家具',
+  '男主',
+  '密探',
+  '头像',
+  '活动',
+  '其他'
+];
 
 const PRIMARY_CATEGORY_LABEL_MAP: Record<string, ScreenshotPrimaryCategory> = {
   '男主类': '男主',

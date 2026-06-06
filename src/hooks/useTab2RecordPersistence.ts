@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PropItem, RecordRow } from '../types';
 import { getFileNameWithoutExtension } from '../utils/fileHelper';
+import { DEFAULT_SCREENSHOT_CATEGORY } from '../utils/tab2Helper';
 import { loadTab2Screenshots } from '../utils/tab2ScreenshotStorage';
 
 interface UseTab2RecordPersistenceOptions {
@@ -85,7 +86,7 @@ export function useTab2RecordPersistence({
           matchedPropFileName: row.matchedPropFileName || matchedProp?.name,
           screenshot: null,
           screenshotOriginalName: row.screenshotOriginalName,
-          screenshotCategory: row.screenshotCategory || '其他',
+          screenshotCategory: row.screenshotCategory || DEFAULT_SCREENSHOT_CATEGORY,
           propName: row.propName || matchedProp?.displayName || '',
           baseColor: row.baseColor || '金',
           propType: row.propType || (matchedProp ? (matchedProp.type === 'furniture' ? '家具' : '其他道具') : ''),

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { PropItem, RecordRow } from './types';
 import Tab1Inbound from './components/Tab1Inbound';
 import Tab2Record from './components/Tab2Record';
 import Tab3Settings from './components/Tab3Settings';
 import Tab4RulesManager from './components/Tab4RulesManager';
 import Tab5Compose from './components/Tab5Compose';
-import { ProgressBar, HelpModal, ApiConfigModal } from './components/common';
+import { ProgressBar, ApiConfigModal } from './components/common';
 
 export default function App() {
   // 从localStorage读取上次打开的tab，如果没有则默认为tab5
@@ -15,7 +15,6 @@ export default function App() {
     const savedTab = localStorage.getItem('lastActiveTab');
     return (savedTab as 'tab1' | 'tab2' | 'tab3' | 'tab4' | 'tab5') || 'tab5';
   });
-  const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [isApiConfigOpen, setIsApiConfigOpen] = useState<boolean>(false);
   const [apiEndpoint, setApiEndpoint] = useState<string>('');
   const [apiKey, setApiKey] = useState<string>('');
@@ -420,18 +419,6 @@ export default function App() {
               <Settings size={13} className="text-[#2E7D32]" />
               <span>API 配置</span>
             </button>
-            
-            {/* Elegant Help rules trigger button with compressed padding */}
-            <button
-              onClick={() => setIsHelpOpen(true)}
-              className="px-3 py-1.2 bg-gradient-to-r from-[#FCF5EA] to-[#FAF0E0] hover:from-[#FAF0E0] hover:to-[#EFE2D0] text-[#A67020] border border-[#EFE2D0] rounded-lg text-xs font-bold tracking-wider hover:shadow-xs transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center gap-1.5 select-none leading-normal"
-              title="查看系统说明、入库及校对解析规则"
-            >
-              <HelpCircle size={13} className="text-[#A67020]" />
-              <span>帮助规则</span>
-            </button>
-
-
           </div>
 
         </div>
@@ -534,11 +521,6 @@ export default function App() {
         )}
 
       </main>
-
-      <HelpModal
-        isOpen={isHelpOpen}
-        onClose={() => setIsHelpOpen(false)}
-      />
 
       <ApiConfigModal
         isOpen={isApiConfigOpen}

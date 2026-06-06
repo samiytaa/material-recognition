@@ -1,6 +1,6 @@
 import type React from 'react';
-import { Globe, Settings, User, Users } from 'lucide-react';
-import type { MappingListType, TabConfig } from './types';
+import { Globe, Layers3, Settings, User, Users, Image, Calendar, Package } from 'lucide-react';
+import type { FurnitureCategoryType, MappingListType, TabConfig } from './types';
 
 export const MAPPING_LIST_TYPES: MappingListType[] = [
   'maleLeads',
@@ -8,15 +8,25 @@ export const MAPPING_LIST_TYPES: MappingListType[] = [
   'outdoorCats',
   'indoorCats',
   'floorCats',
+  'avatarCats',
+  'activityCats',
+  'otherCats',
 ];
 
 export const TAB_CONFIGS: TabConfig[] = [
   { id: 'maleLeads', label: '男主映射', description: '拼音 → 男主中文名', color: '#D86B6B', icon: User },
   { id: 'spyNames', label: '密探名映射', description: '拼音 → 密探中文名', color: '#4F73C7', icon: Users },
-  { id: 'outdoorCats', label: '户外分类', description: '代码 → 户外分类名', color: '#C59F4A', icon: Settings },
-  { id: 'indoorCats', label: '户内分类', description: '代码 → 户内分类名', color: '#8B6F47', icon: Settings },
-  { id: 'floorCats', label: '地板分类', description: '代码 → 地板分类名', color: '#9E4A4A', icon: Settings },
+  { id: 'furnitureCats', label: '家具分类', description: '类型 + 代码 → 分类名', color: '#C59F4A', icon: Layers3 },
+  { id: 'avatarCats', label: '头像类映射', description: '代码 → 头像分类名', color: '#F59E42', icon: Image },
+  { id: 'activityCats', label: '活动类映射', description: '代码 → 活动分类名', color: '#52C41A', icon: Calendar },
+  { id: 'otherCats', label: '其他类映射', description: '代码 → 其他分类名', color: '#9254DE', icon: Package },
   { id: 'ownershipRules', label: '归属规则', description: '分类 → 归属类型和提取方式', color: '#7B68EE', icon: Globe },
+];
+
+export const FURNITURE_CATEGORY_OPTIONS: Array<{ value: FurnitureCategoryType; label: string; color: string }> = [
+  { value: 'outdoorCats', label: '户外分类', color: '#C59F4A' },
+  { value: 'indoorCats', label: '户内分类', color: '#8B6F47' },
+  { value: 'floorCats', label: '地板分类', color: '#9E4A4A' },
 ];
 
 export const EXTRACT_FROM_OPTIONS = [
@@ -41,16 +51,19 @@ export const TAB_HINTS: Record<string, React.ReactNode> = {
   spyNames: (
     <span>💡 用于识别密探头像文件名。例：<code className="bg-gray-100 px-1 rounded">icon_sunfu_s.png</code> → <code className="bg-gray-100 px-1 rounded">密探头像-孙辅</code></span>
   ),
-  outdoorCats: (
-    <span>💡 用于识别户外家具分类。例：<code className="bg-gray-100 px-1 rounded">icon_s1_sc_jianzhu_1001.png</code> → <code className="bg-gray-100 px-1 rounded">孙策-建筑</code></span>
-  ),
-  indoorCats: (
-    <span>💡 用于识别户内家具分类。例：<code className="bg-gray-100 px-1 rounded">icon_s1_lb_qiju_2001.png</code> → <code className="bg-gray-100 px-1 rounded">刘辩-起居</code></span>
-  ),
-  floorCats: (
-    <span>💡 用于识别地板类分类。例：<code className="bg-gray-100 px-1 rounded">icon_s1_all_diban_3001.png</code> → <code className="bg-gray-100 px-1 rounded">地板</code></span>
+  furnitureCats: (
+    <span>💡 合并管理户外、户内、地板分类。例：<code className="bg-gray-100 px-1 rounded">jianzhu</code> → <code className="bg-gray-100 px-1 rounded">建筑</code>，通过“分类类型”列区分。</span>
   ),
   ownershipRules: (
     <span>💡 定义每个分类的归属类型和提取方式。例：<code className="bg-gray-100 px-1 rounded">建筑</code> 分类默认归属为 <code className="bg-gray-100 px-1 rounded">男主</code>，从 <code className="bg-gray-100 px-1 rounded">家具格式段</code> 提取</span>
+  ),
+  avatarCats: (
+    <span>💡 用于识别头像类道具。例：<code className="bg-gray-100 px-1 rounded">mitantouxiang</code> → <code className="bg-gray-100 px-1 rounded">密探头像</code></span>
+  ),
+  activityCats: (
+    <span>💡 用于识别活动类道具。例：<code className="bg-gray-100 px-1 rounded">qixi</code> → <code className="bg-gray-100 px-1 rounded">七夕活动</code></span>
+  ),
+  otherCats: (
+    <span>💡 用于识别其他类道具。例：<code className="bg-gray-100 px-1 rounded">fudie</code> → <code className="bg-gray-100 px-1 rounded">符牒</code></span>
   ),
 };

@@ -299,13 +299,18 @@ export default function Tab2Record(props: Tab2RecordPropsExtended) {
         {/* 快捷键提示 */}
         {filteredRecordList.length > 0 && (
           <div className="mt-2 px-3 py-1.5 bg-[#FAF8F4] border border-[#DFD2BD]/40 rounded-lg">
-            <div className="flex items-center gap-4 text-[10px] text-[#8B6F47]">
+            <div className="flex items-center gap-4 text-[10px] text-[#8B6F47] flex-wrap">
               <span className="font-semibold">快捷操作：</span>
               <span>单击行 = 选中</span>
               <span>双击行 = 校对</span>
               <span>Enter = 确认</span>
               <span>Backspace/R = 退回</span>
               <span>↑/↓ = 切换行</span>
+              <span className="text-[#DFD2BD]">|</span>
+              <span className="font-semibold">多选框：</span>
+              <span>点击 = 切换</span>
+              <span>Ctrl+点击 = 离散</span>
+              <span>Shift+点击 = 区间</span>
             </div>
           </div>
         )}
