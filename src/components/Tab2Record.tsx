@@ -87,6 +87,17 @@ export default function Tab2Record({
     logs: [] as string[]
   });
   
+  // 导出进度弹窗状态
+  const [exportProgress, setExportProgress] = useState({
+    isOpen: false,
+    current: 0,
+    total: 0,
+    successCount: 0,
+    failCount: 0,
+    currentProcessing: '',
+    logs: [] as string[]
+  });
+  
   // 选中行管理（使用 row.id 而不是索引）
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
   
@@ -996,25 +1007,111 @@ export default function Tab2Record({
     }
 
     addRecordLog(`开始导出，共 ${exportRows.length} 条数据...`);
-    showProgressBar();
+
+    // 打开导出进度弹窗
+    setExportProgress({
+      isOpen: true,
+      current: 0,
+      total: exportRows.length,
+      successCount: 0,
+      failCount: 0,
+      currentProcessing: '准备导出...',
+      logs: []
+    });
 
     try {
-      // 动态导入 exportHelper
-      const { exportRecordsToZip } = await import('../utils/exportHelper');
+      // 动态导入必要库
+      const JSZip = (await import('jszip')).default;
+      const { saveAs } = await import('file-saver');
       
-      // 调用导出函数，传入进度回调
-      await exportRecordsToZip(recordList, (current, total) => {
-        updateProgress(current, total);
-        addRecordLog(`[${current}/${total}] 正在打包：${exportRows[current - 1]?.outputName || ''}`);
-      });
+      const zip = new JSZip();
+      const folder = zip.folder('加底图片');
+      const usedFileNames = new Set<string>();
 
-      hideProgressBar();
-      addRecordLog(`✓ 导出完成！共 ${exportRows.length} 个文件已打包为ZIP`);
-      alert(`导出完成！\n已导出 ${exportRows.length} 个加底图片\n文件已保存为ZIP压缩包`);
+      const getUniqueFileName = (baseName: string): string => {
+        let fileName = `${baseName}.png`;
+        let counter = 1;
+        
+        while (usedFileNames.has(fileName)) {
+          fileName = `${baseName}_${counter}.png`;
+          counter++;
+        }
+        
+        usedFileNames.add(fileName);
+        return fileName;
+      };
+
+      let successCount = 0;
+      let failCount = 0;
+      const progressLogs: string[] = [];
+
+      for (let i = 0; i < exportRows.length; i++) {
+        const row = exportRows[i];
+        const fileName = row.outputName;
+
+        // 更新进度
+        setExportProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          currentProcessing: `正在处理: ${fileName}`,
+          logs: [...progressLogs, `[${i + 1}/${exportRows.length}] ${fileName}`]
+        }));
+
+        try {
+          if (row.previewWithBase) {
+            const base64Data = row.previewWithBase.split(',')[1];
+            const uniqueFileName = getUniqueFileName(fileName);
+            folder?.file(uniqueFileName, base64Data, { base64: true });
+            
+            successCount++;
+            progressLogs.push(`✓ ${fileName}`);
+            setExportProgress(prev => ({
+              ...prev,
+              successCount: successCount
+            }));
+            
+            addRecordLog(`[${i + 1}/${exportRows.length}] 正在打包：${fileName}`);
+          }
+        } catch (error) {
+          failCount++;
+          const errorMsg = error instanceof Error ? error.message : '未知错误';
+          progressLogs.push(`✗ ${fileName}: ${errorMsg}`);
+          setExportProgress(prev => ({
+            ...prev,
+            failCount: failCount
+          }));
+          addRecordLog(`✗ ${fileName}: ${errorMsg}`);
+        }
+
+        // 限制日志数量
+        if (progressLogs.length > 20) {
+          progressLogs.shift();
+        }
+      }
+
+      // 生成ZIP文件
+      setExportProgress(prev => ({
+        ...prev,
+        currentProcessing: '正在生成ZIP文件...'
+      }));
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const fileName = `加底图片导出_${timestamp}.zip`;
+      saveAs(blob, fileName);
+
+      addRecordLog(`✓ 导出完成！共 ${successCount} 个文件已打包为ZIP`);
+      
+      // 延迟关闭进度弹窗
+      setTimeout(() => {
+        setExportProgress(prev => ({ ...prev, isOpen: false }));
+        alert(`导出完成！\n\n成功: ${successCount}\n失败: ${failCount}\n\n文件已保存为: ${fileName}`);
+      }, 1000);
+
     } catch (error) {
-      hideProgressBar();
       const errorMsg = error instanceof Error ? error.message : '未知错误';
       addRecordLog(`✗ 导出失败：${errorMsg}`);
+      setExportProgress(prev => ({ ...prev, isOpen: false }));
       alert(`导出失败：${errorMsg}`);
     }
   };
@@ -1035,6 +1132,18 @@ export default function Tab2Record({
         failCount={recognitionProgress.failCount}
         currentProcessing={recognitionProgress.currentProcessing}
         logs={recognitionProgress.logs}
+      />
+
+      {/* 导出进度弹窗 */}
+      <RecognitionProgressModal
+        isOpen={exportProgress.isOpen}
+        current={exportProgress.current}
+        total={exportProgress.total}
+        successCount={exportProgress.successCount}
+        failCount={exportProgress.failCount}
+        currentProcessing={exportProgress.currentProcessing}
+        logs={exportProgress.logs}
+        title="正在导出中..."
       />
 
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden decorative-corners" padding="md">

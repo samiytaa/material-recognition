@@ -1,7 +1,7 @@
 import { Download, Eye, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { runDirectVisionMatching } from '../utils/visionApiHelper';
-import { UploadZone, BasemapGroupSelector, BasemapColorPicker, RecognitionProgressModal } from './common';
+import { UploadZone, BasemapGroupSelector, BasemapColorPicker } from './common';
 import { useBasemapGroups, type BasemapItem } from '../hooks';
 
 interface IconLibraryItem {
@@ -19,6 +19,18 @@ export default function Tab5Compose() {
   // icon库状态
   const [iconLibrary, setIconLibrary] = useState<IconLibraryItem[]>([]);
   const [selectedIconId, setSelectedIconId] = useState<string | null>(null);
+
+  // 日志状态 - 需要在 useBasemapGroups 之前定义
+  const [logs, setLogs] = useState<string[]>([
+    '[系统] 就绪。配置API Key后上传截图和透明icon库即可测试。',
+    '[说明] 一键识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
+  ]);
+
+  // 添加日志函数 - 需要在 useBasemapGroups 之前定义
+  const addLog = (message: string) => {
+    const time = new Date().toLocaleTimeString('zh-CN');
+    setLogs(prev => [...prev, `[${time}] ${message}`]);
+  };
 
   // 使用统一的底图组管理 Hook
   const { groups: baseMapGroups } = useBasemapGroups(addLog);
@@ -43,23 +55,6 @@ export default function Tab5Compose() {
 
   // 批次大小控制
   const [batchSize, setBatchSize] = useState<number>(5);
-
-  // 日志状态
-  const [logs, setLogs] = useState<string[]>([
-    '[系统] 就绪。配置API Key后上传截图和透明icon库即可测试。',
-    '[说明] 一键识别 - AI同时看到参考图和候选icon，进行直接视觉比较'
-  ]);
-
-  // 导出进度弹窗状态
-  const [exportProgress, setExportProgress] = useState({
-    isOpen: false,
-    current: 0,
-    total: 0,
-    successCount: 0,
-    failCount: 0,
-    currentProcessing: '',
-    logs: [] as string[]
-  });
 
   // refs
   const composeCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -128,12 +123,6 @@ export default function Tab5Compose() {
       document.head.removeChild(style);
     };
   }, [baseMapGroups, selectedBaseMapGroupId]);
-
-  // 添加日志
-  const addLog = (message: string) => {
-    const time = new Date().toLocaleTimeString('zh-CN');
-    setLogs(prev => [...prev, `[${time}] ${message}`]);
-  };
 
   // 截图上传处理
   const handleScreenshotUpload = async (files: FileList) => {
@@ -399,174 +388,7 @@ export default function Tab5Compose() {
     });
   };
 
-  // 批量导出所有合成图片
-  const handleBatchExport = async () => {
-    if (!selectedBaseMapColor || iconLibrary.length === 0) {
-      alert('请先完成底图选择和添加透明icon');
-      addLog('[错误] 批量导出失败：缺少必要条件');
-      return;
-    }
 
-    if (!confirm(`确定要批量导出 ${iconLibrary.length} 个合成图片吗？\n\n将使用当前选中的底图颜色：${selectedBaseMapColor}`)) {
-      addLog('[取消] 用户取消批量导出');
-      return;
-    }
-
-    addLog('========================================');
-    addLog('[开始] 批量导出合成图片...');
-    addLog(`[信息] 底图颜色: ${selectedBaseMapColor}`);
-    addLog(`[信息] icon数量: ${iconLibrary.length}`);
-
-    // 显示导出进度弹窗
-    setExportProgress({
-      isOpen: true,
-      current: 0,
-      total: iconLibrary.length,
-      successCount: 0,
-      failCount: 0,
-      currentProcessing: '准备导出...',
-      logs: []
-    });
-
-    try {
-      const JSZip = (await import('jszip')).default;
-      const { saveAs } = await import('file-saver');
-      
-      const zip = new JSZip();
-      const folder = zip.folder('合成图片');
-      const usedFileNames = new Set<string>();
-
-      const getUniqueFileName = (baseName: string): string => {
-        let fileName = `${baseName}.png`;
-        let counter = 1;
-        
-        while (usedFileNames.has(fileName)) {
-          fileName = `${baseName.replace(/\.png$/, '')}_${counter}.png`;
-          counter++;
-        }
-        
-        usedFileNames.add(fileName);
-        return fileName;
-      };
-
-      const canvas = document.createElement('canvas');
-      canvas.width = 140;
-      canvas.height = 140;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        setExportProgress(prev => ({ ...prev, isOpen: false }));
-        throw new Error('无法创建canvas上下文');
-      }
-
-      const baseMap = baseMaps.find(b => b.color === selectedBaseMapColor);
-      if (!baseMap) {
-        setExportProgress(prev => ({ ...prev, isOpen: false }));
-        throw new Error('未找到选中的底图');
-      }
-
-      let successCount = 0;
-      let failCount = 0;
-
-      for (let i = 0; i < iconLibrary.length; i++) {
-        const icon = iconLibrary[i];
-        const iconName = icon.name.replace(/\.(png|jpg|jpeg|webp)$/i, '');
-        
-        // 更新进度
-        setExportProgress(prev => ({
-          ...prev,
-          current: i + 1,
-          currentProcessing: `正在处理: ${iconName}`,
-          logs: [...prev.logs, `[${i + 1}/${iconLibrary.length}] ${iconName}`]
-        }));
-
-        try {
-          // 清空画布
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-          // 加载并绘制底图
-          await new Promise<void>((resolve, reject) => {
-            const baseImg = new Image();
-            baseImg.onload = () => {
-              ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
-              resolve();
-            };
-            baseImg.onerror = () => reject(new Error('底图加载失败'));
-            baseImg.src = baseMap.image;
-          });
-
-          // 加载并绘制icon
-          await new Promise<void>((resolve, reject) => {
-            const iconImg = new Image();
-            iconImg.onload = () => {
-              if (enableContainScale) {
-                const scale = Math.min(canvas.width / iconImg.width, canvas.height / iconImg.height);
-                const scaledWidth = iconImg.width * scale;
-                const scaledHeight = iconImg.height * scale;
-                const offsetX = (canvas.width - scaledWidth) / 2;
-                const offsetY = (canvas.height - scaledHeight) / 2;
-                ctx.drawImage(iconImg, offsetX, offsetY, scaledWidth, scaledHeight);
-              } else {
-                const offsetX = (canvas.width - iconImg.width) / 2;
-                const offsetY = (canvas.height - iconImg.height) / 2;
-                ctx.drawImage(iconImg, offsetX, offsetY, iconImg.width, iconImg.height);
-              }
-              resolve();
-            };
-            iconImg.onerror = () => reject(new Error('Icon加载失败'));
-            iconImg.src = `data:image/png;base64,${icon.base64}`;
-          });
-
-          // 将canvas转为base64并添加到zip
-          const dataUrl = canvas.toDataURL('image/png');
-          const base64Data = dataUrl.split(',')[1];
-          const uniqueFileName = getUniqueFileName(`${iconName}_${selectedBaseMapColor}.png`);
-          folder?.file(uniqueFileName, base64Data, { base64: true });
-          
-          successCount++;
-          setExportProgress(prev => ({
-            ...prev,
-            successCount: successCount
-          }));
-
-        } catch (error) {
-          failCount++;
-          const errorMsg = error instanceof Error ? error.message : '未知错误';
-          addLog(`[失败] ${iconName}: ${errorMsg}`);
-          setExportProgress(prev => ({
-            ...prev,
-            failCount: failCount,
-            logs: [...prev.logs, `✗ ${iconName} 失败: ${errorMsg}`]
-          }));
-        }
-      }
-
-      // 生成并下载ZIP
-      setExportProgress(prev => ({
-        ...prev,
-        currentProcessing: '正在生成ZIP文件...'
-      }));
-
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const fileName = `合成图片导出_${selectedBaseMapColor}_${timestamp}.zip`;
-      saveAs(blob, fileName);
-
-      addLog(`[完成] 批量导出成功！`);
-      addLog(`[统计] 成功: ${successCount}, 失败: ${failCount}`);
-      
-      // 延迟关闭进度弹窗
-      setTimeout(() => {
-        setExportProgress(prev => ({ ...prev, isOpen: false }));
-        alert(`导出完成！\n\n成功: ${successCount}\n失败: ${failCount}\n\n文件已保存为: ${fileName}`);
-      }, 1000);
-
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '未知错误';
-      addLog(`[错误] 批量导出失败: ${errorMsg}`);
-      setExportProgress(prev => ({ ...prev, isOpen: false }));
-      alert(`批量导出失败：${errorMsg}`);
-    }
-  };
 
   // 清空日志
   const handleClearLogs = () => {
@@ -579,19 +401,6 @@ export default function Tab5Compose() {
       className="hide-scrollbar flex-1 flex flex-col min-h-0 bg-transparent text-[#443B43] overflow-y-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
-      {/* 导出进度弹窗 */}
-      <RecognitionProgressModal
-        isOpen={exportProgress.isOpen}
-        current={exportProgress.current}
-        total={exportProgress.total}
-        successCount={exportProgress.successCount}
-        failCount={exportProgress.failCount}
-        currentProcessing={exportProgress.currentProcessing}
-        logs={exportProgress.logs}
-        title="正在导出中..."
-      />
-
-      {/* 第一行：三个卡片 - 游戏截图、Icon库、底图展示 */}
       <div className="flex-shrink-0 space-y-4 px-2 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -893,15 +702,6 @@ export default function Tab5Compose() {
                 >
                   <RefreshCw size={12} />
                   刷新合成
-                </button>
-                <button
-                  onClick={handleBatchExport}
-                  disabled={!selectedBaseMapColor || iconLibrary.length === 0}
-                  className="px-3 py-1.5 bg-gradient-to-r from-[#C59F4A] to-[#D4AF37] hover:from-[#B58F3A] hover:to-[#C59F27] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                  title="批量导出所有icon的合成图片"
-                >
-                  <Download size={12} />
-                  批量导出
                 </button>
               </div>
             </div>
