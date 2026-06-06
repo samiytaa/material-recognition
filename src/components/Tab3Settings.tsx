@@ -25,11 +25,11 @@ const DEFAULT_BASEMAP_GROUPS: MapGroup[] = [
     id: 'group_default',
     name: '道具底图',
     thumbnails: [
-      { id: 'basemap_1', image: '/basemaps/prop-brown.png', color: '咖' },
-      { id: 'basemap_2', image: '/basemaps/prop-purple.png', color: '紫' },
-      { id: 'basemap_3', image: '/basemaps/prop-green.png', color: '绿' },
-      { id: 'basemap_4', image: '/basemaps/prop-blue.png', color: '蓝' },
-      { id: 'basemap_5', image: '/basemaps/prop-gold.png', color: '金' }
+      { id: 'basemap_1', image: 'basemaps/prop-brown.png', color: '咖' },
+      { id: 'basemap_2', image: 'basemaps/prop-purple.png', color: '紫' },
+      { id: 'basemap_3', image: 'basemaps/prop-green.png', color: '绿' },
+      { id: 'basemap_4', image: 'basemaps/prop-blue.png', color: '蓝' },
+      { id: 'basemap_5', image: 'basemaps/prop-gold.png', color: '金' }
     ]
   }
 ];
@@ -51,15 +51,15 @@ export default function Tab3Settings() {
             if (item.image.includes('道具-')) {
               needsUpdate = true;
               if (item.image.includes('道具-金.png')) {
-                newImage = '/basemaps/prop-gold.png';
+                newImage = 'basemaps/prop-gold.png';
               } else if (item.image.includes('道具-紫.png')) {
-                newImage = '/basemaps/prop-purple.png';
+                newImage = 'basemaps/prop-purple.png';
               } else if (item.image.includes('道具-蓝.png')) {
-                newImage = '/basemaps/prop-blue.png';
+                newImage = 'basemaps/prop-blue.png';
               } else if (item.image.includes('道具-绿.png')) {
-                newImage = '/basemaps/prop-green.png';
+                newImage = 'basemaps/prop-green.png';
               } else if (item.image.includes('道具-咖.png')) {
-                newImage = '/basemaps/prop-brown.png';
+                newImage = 'basemaps/prop-brown.png';
               }
             }
             return { ...item, image: newImage };
@@ -100,15 +100,15 @@ export default function Tab3Settings() {
               // 如果是旧的中文路径，替换为新的英文路径
               let newImage = item.image;
               if (item.image.includes('道具-金.png')) {
-                newImage = '/basemaps/prop-gold.png';
+                newImage = 'basemaps/prop-gold.png';
               } else if (item.image.includes('道具-紫.png')) {
-                newImage = '/basemaps/prop-purple.png';
+                newImage = 'basemaps/prop-purple.png';
               } else if (item.image.includes('道具-蓝.png')) {
-                newImage = '/basemaps/prop-blue.png';
+                newImage = 'basemaps/prop-blue.png';
               } else if (item.image.includes('道具-绿.png')) {
-                newImage = '/basemaps/prop-green.png';
+                newImage = 'basemaps/prop-green.png';
               } else if (item.image.includes('道具-咖.png')) {
-                newImage = '/basemaps/prop-brown.png';
+                newImage = 'basemaps/prop-brown.png';
               }
               return { ...item, image: newImage };
             })
