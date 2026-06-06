@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Sparkles, Download, Trash2 } from 'lucide-react';
+import { Sparkles, Download } from 'lucide-react';
 import { RecordRow } from '../types';
 import LogSidebar from './LogSidebar';
 import { RecordTable, ScreenshotList } from './tab2';
@@ -1068,8 +1068,8 @@ export default function Tab2Record({
     alert(`已保存 ${validRows.length} 条追记数据到本地存储`);
   };
 
-  // Export batch mock download
-  const exportBatchFiles = () => {
+  // Export batch files as ZIP
+  const exportBatchFiles = async () => {
     const exportRows = recordList.filter(row => row.previewWithBase && row.outputName.trim() !== '');
     if (exportRows.length === 0) {
       alert('没有可导出的数据\n请先完成AI匹配和加底处理');
@@ -1077,32 +1077,32 @@ export default function Tab2Record({
       return;
     }
 
-    if (!confirm(`检测到 ${exportRows.length} 条可导出数据\n确定导出吗？`)) {
+    if (!confirm(`检测到 ${exportRows.length} 条可导出数据\n确定导出为ZIP文件吗？`)) {
       return;
     }
 
     addRecordLog(`开始导出，共 ${exportRows.length} 条数据...`);
     showProgressBar();
 
-    let exportedCount = 0;
-    const intervalTime = 150;
+    try {
+      // 动态导入 exportHelper
+      const { exportRecordsToZip } = await import('../utils/exportHelper');
+      
+      // 调用导出函数，传入进度回调
+      await exportRecordsToZip(recordList, (current, total) => {
+        updateProgress(current, total);
+        addRecordLog(`[${current}/${total}] 正在打包：${exportRows[current - 1]?.outputName || ''}`);
+      });
 
-    const processNextExport = () => {
-      if (exportedCount >= exportRows.length) {
-        hideProgressBar();
-        addRecordLog(`✓ 导出完成！共 ${exportRows.length} 个文件`);
-        alert(`导出完成！\n已导出 ${exportRows.length} 个文件\n（实际开发中会打开文件保存对话框）`);
-        return;
-      }
-
-      exportedCount++;
-      updateProgress(exportedCount, exportRows.length);
-      addRecordLog(`[${exportedCount}/${exportRows.length}] 导出：${exportRows[exportedCount - 1].outputName}`);
-
-      setTimeout(processNextExport, intervalTime);
-    };
-
-    setTimeout(processNextExport, intervalTime);
+      hideProgressBar();
+      addRecordLog(`✓ 导出完成！共 ${exportRows.length} 个文件已打包为ZIP`);
+      alert(`导出完成！\n已导出 ${exportRows.length} 个加底图片\n文件已保存为ZIP压缩包`);
+    } catch (error) {
+      hideProgressBar();
+      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      addRecordLog(`✗ 导出失败：${errorMsg}`);
+      alert(`导出失败：${errorMsg}`);
+    }
   };
 
 
@@ -1165,66 +1165,46 @@ export default function Tab2Record({
             </div>
           </div>
           
-          {/* 加底等比缩放开关 */}
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={enableContainScale}
-                onChange={(e) => {
-                  const newValue = e.target.checked;
-                  setEnableContainScale(newValue);
-                  localStorage.setItem('tab2_enableContainScale', newValue.toString());
-                  addRecordLog(`[设置] ${newValue ? '启用' : '禁用'} 加底等比缩放模式`);
-                }}
-                className="w-3.5 h-3.5 rounded border-[#8B6F47] text-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] cursor-pointer"
-              />
-              <span className="text-xs font-semibold text-[#674b2d] whitespace-nowrap group-hover:text-[#8B6F47] transition-colors">
-                加底等比缩放
-              </span>
-            </label>
-          </div>
-          
-          {/* 批量操作按钮 */}
-          {selectedRowIds.length > 0 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={deleteSelectedScreenshots}
-                className="px-2 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm"
-                title={`删除选中行的游戏截图 (${selectedRowIds.length} 行)`}
-              >
-                <Trash2 size={14} />
-                删截图({selectedRowIds.length})
-              </button>
-              
-              <button
-                onClick={deleteSelectedRows}
-                className="px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm"
-                title={`删除选中的 ${selectedRowIds.length} 行`}
-              >
-                <Trash2 size={14} />
-                删行({selectedRowIds.length})
-              </button>
-            </div>
-          )}
-          
-          {/* 底图组选择器 */}
+          {/* 底图组选择器 + 加底等比缩放开关 */}
           {basemapGroups.length > 0 && (
-            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <label className="text-xs font-semibold text-[#674b2d] whitespace-nowrap">
-                底图组
-              </label>
-              <select
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="flex-1 text-xs px-2 py-1.5 bg-white border border-[#DFD2BD] rounded-md outline-none font-medium text-[#674b2d] hover:border-[#8B6F47] focus:border-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] transition-colors"
-              >
-                {basemapGroups.map(group => (
-                  <option key={group.id} value={group.id}>
-                    {group.name} ({group.thumbnails.length}个底色)
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+              {/* 底图组选择器 */}
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-xs font-semibold text-[#674b2d] whitespace-nowrap">
+                  底图组
+                </label>
+                <select
+                  value={selectedGroupId}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  className="flex-1 text-xs px-2 py-1.5 bg-white border border-[#DFD2BD] rounded-md outline-none font-medium text-[#674b2d] hover:border-[#8B6F47] focus:border-[#8B6F47] focus:ring-1 focus:ring-[#8B6F47] transition-colors"
+                >
+                  {basemapGroups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name} ({group.thumbnails.length}个底色)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* 加底等比缩放开关 - 带独特样式 */}
+              <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-[#FFF8E7] to-[#FFF4DC] border border-[#E8D4A8] rounded-md shadow-sm">
+                <label className="flex items-center gap-1.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={enableContainScale}
+                    onChange={(e) => {
+                      const newValue = e.target.checked;
+                      setEnableContainScale(newValue);
+                      localStorage.setItem('tab2_enableContainScale', newValue.toString());
+                      addRecordLog(`[设置] ${newValue ? '启用' : '禁用'} 加底等比缩放模式`);
+                    }}
+                    className="w-3.5 h-3.5 rounded border-[#D4A944] text-[#D4A944] focus:ring-1 focus:ring-[#D4A944] cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-[#8B6F47] whitespace-nowrap group-hover:text-[#A67C00] transition-colors">
+                    加底等比缩放
+                  </span>
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -1279,6 +1259,8 @@ export default function Tab2Record({
               const originalRowIndex = recordList.findIndex(r => r.id === rowId);
               deleteScreenshotFromRow(originalRowIndex);
             }}
+            onDeleteSelectedRows={deleteSelectedRows}
+            onDeleteSelectedScreenshots={deleteSelectedScreenshots}
           />
         </div>
       </Card>

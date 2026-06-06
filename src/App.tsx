@@ -557,7 +557,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <HelpCircle size={18} className="text-[#FFF2C5]" />
                   <span className="font-serif font-bold text-sm sm:text-base tracking-widest text-[#FFF2C5]">
-                    系统书卷 ✦ 帮助与规则说明数
+                    说明 ✦ 
                   </span>
                 </div>
                 <button
@@ -619,25 +619,17 @@ export default function App() {
                 <div className="space-y-3">
                   <h3 className="text-xs sm:text-sm font-serif font-bold text-[#9E4A4A] border-b border-[#DFD2BD] pb-1.5 flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#9E4A4A]" />
-                    ② 人工校对与修改操作
+                    ② 多选操作说明
                   </h3>
                   <div className="bg-white border border-[#E9DFD0] p-4 rounded-xl space-y-3 text-xs text-[#5C534C] leading-relaxed">
                     <div className="flex items-start gap-2">
                       <Info size={14} className="text-[#D86B6B] mt-0.5 flex-shrink-0" />
                       <div>
-                        <span className="font-bold text-[#5C534C]">表格单元格覆写：</span>
+                        <span className="font-bold text-[#5C534C]">点击多选框区域操作：</span>
                         <ul className="list-disc pl-4 mt-1 space-y-1">
-                          <li>双击或直接点击表格内第3列【道具名】输入框，即可随心所欲实时覆写内容。</li>
-                          <li>【底色】和【分类】列提供了一键下拉菜单，支持您进行低成本手工修正笔录。</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 pt-2.5 border-t border-dashed border-[#DFD2BD]/60">
-                      <Info size={14} className="text-[#8B6F47] mt-0.5 flex-shrink-0" />
-                      <div>
-                        <span className="font-bold text-[#5C534C]">实时更新与同步：</span>
-                        <ul className="list-disc pl-4 mt-1 space-y-1">
-                          <li>保存、重载或运行AI深度自动匹配时，均会全网实时追踪、整合并自动同步您的覆写内容。</li>
+                          <li><span className="font-semibold">普通点击：</span>切换当前行的选中状态</li>
+                          <li><span className="font-semibold">Ctrl + 点击：</span>离散多选，保持其他选中项，切换当前行</li>
+                          <li><span className="font-semibold">Shift + 点击：</span>区间连选，从上次选中行到当前行的所有行都被选中</li>
                         </ul>
                       </div>
                     </div>

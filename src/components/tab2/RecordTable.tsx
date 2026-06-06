@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileImage } from 'lucide-react';
+import { FileImage, Trash2 } from 'lucide-react';
 import { RecordRow } from '../../types';
 import RecordTableRow from './RecordTableRow';
 
@@ -16,6 +16,8 @@ interface RecordTableProps {
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
   onReturnScreenshot?: (rowId: number) => void;
   onDeleteScreenshot?: (rowId: number) => void;
+  onDeleteSelectedRows?: () => void;
+  onDeleteSelectedScreenshots?: () => void;
 }
 
 interface BasemapItem {
@@ -43,6 +45,8 @@ export default function RecordTable({
   onUpdateRow,
   onReturnScreenshot,
   onDeleteScreenshot,
+  onDeleteSelectedRows,
+  onDeleteSelectedScreenshots,
 }: RecordTableProps) {
   if (records.length === 0) {
     return (
@@ -74,10 +78,34 @@ export default function RecordTable({
             />
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            道具icon
+            <div className="flex flex-col items-center gap-1.5">
+              <span>道具icon</span>
+              {selectedRowIds.length > 0 && onDeleteSelectedRows && (
+                <button
+                  onClick={onDeleteSelectedRows}
+                  className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white font-semibold text-[10px] rounded transition-colors flex items-center gap-1 shadow-sm"
+                  title={`删除选中的 ${selectedRowIds.length} 行`}
+                >
+                  <Trash2 size={12} />
+                  删行({selectedRowIds.length})
+                </button>
+              )}
+            </div>
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            游戏截图
+            <div className="flex flex-col items-center gap-1.5">
+              <span>游戏截图</span>
+              {selectedRowIds.length > 0 && onDeleteSelectedScreenshots && (
+                <button
+                  onClick={onDeleteSelectedScreenshots}
+                  className="px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-[10px] rounded transition-colors flex items-center gap-1 shadow-sm"
+                  title={`删除选中行的游戏截图 (${selectedRowIds.length} 行)`}
+                >
+                  <Trash2 size={12} />
+                  删截图({selectedRowIds.length})
+                </button>
+              )}
+            </div>
           </th>
           <th className="w-[140px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             道具名
