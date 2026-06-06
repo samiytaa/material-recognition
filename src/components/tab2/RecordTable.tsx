@@ -20,6 +20,8 @@ interface RecordTableProps {
   onConfirmIcon: (rowId: number) => void;
   onReturnIcon: (rowId: number) => void;
   onDeleteScreenshot?: (rowId: number) => void;
+  focusedRowIndex: number | null;
+  onFocusRow: (rowId: number | null) => void;
 }
 
 export default function RecordTable({
@@ -38,7 +40,61 @@ export default function RecordTable({
   onConfirmIcon,
   onReturnIcon,
   onDeleteScreenshot,
+  focusedRowIndex,
+  onFocusRow,
 }: RecordTableProps) {
+  // 键盘快捷键支持
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (focusedRowIndex === null || focusedRowIndex < 0 || focusedRowIndex >= records.length) return;
+      
+      // 如果用户在输入框中，不响应快捷键
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
+      }
+
+      const currentRow = records[focusedRowIndex];
+      const iconStatus = getIconStatus(currentRow);
+
+      switch (e.key) {
+        case 'Enter':
+          // 确认当前行
+          if (iconStatus === 'ai') {
+            e.preventDefault();
+            onConfirmIcon(focusedRowIndex);
+          }
+          break;
+        case 'Backspace':
+        case 'r':
+        case 'R':
+          // 退回当前行
+          if (iconStatus === 'ai' || iconStatus === 'confirmed') {
+            e.preventDefault();
+            onReturnIcon(focusedRowIndex);
+          }
+          break;
+        case 'ArrowUp':
+          // 切换到上一行
+          e.preventDefault();
+          if (focusedRowIndex > 0) {
+            onFocusRow(focusedRowIndex - 1);
+          }
+          break;
+        case 'ArrowDown':
+          // 切换到下一行
+          e.preventDefault();
+          if (focusedRowIndex < records.length - 1) {
+            onFocusRow(focusedRowIndex + 1);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedRowIndex, records, getIconStatus, onConfirmIcon, onReturnIcon, onFocusRow]);
+
   if (records.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -74,6 +130,9 @@ export default function RecordTable({
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             道具icon
           </th>
+          <th className="w-[120px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
+            确认状态
+          </th>
           <th className="w-[140px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             道具名
           </th>
@@ -82,9 +141,6 @@ export default function RecordTable({
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             分类
-          </th>
-          <th className="w-[120px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
-            确认状态
           </th>
           <th className="w-[100px] border border-[#E9DFDB] text-center p-3 text-xs font-bold text-[#674b2d]">
             加底预览
@@ -105,7 +161,9 @@ export default function RecordTable({
             selectedGroupId={selectedGroupId}
             enableContainScale={enableContainScale}
             isSelected={selectedRowIds.includes(row.id)}
+            isFocused={focusedRowIndex === idx}
             onToggleSelection={(rowId, event) => onToggleRowSelection(rowId, event)}
+            onFocusRow={() => onFocusRow(idx)}
             onViewImage={onViewImage}
             onUploadImage={onUploadImage}
             onUpdateRow={onUpdateRow}

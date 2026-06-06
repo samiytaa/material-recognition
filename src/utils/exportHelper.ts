@@ -98,7 +98,9 @@ export async function exportRecordsToZip(
   records: RecordRow[],
   onProgress?: (current: number, total: number) => void
 ): Promise<void> {
-  const exportRows = records.filter(row => row.previewWithBase && row.outputName.trim() !== '');
+  const exportRows = records.filter(
+    row => row.previewWithBase && row.outputName && row.outputName.trim() !== ''
+  );
   
   if (exportRows.length === 0) {
     throw new Error('没有可导出的数据');

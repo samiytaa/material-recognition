@@ -2,6 +2,10 @@ import React from 'react';
 import { CheckCircle, ChevronLeft, ChevronRight, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { RecordRow } from '../../types';
 
+const MIN_REVIEW_ZOOM = 50;
+const MAX_REVIEW_ZOOM = 250;
+const REVIEW_ZOOM_STEP = 10;
+
 interface CalibrationReviewModalProps {
   isOpen: boolean;
   rows: RecordRow[];
@@ -28,30 +32,34 @@ function ImageReviewPane({
     setZoom(100);
   }, [imageUrl]);
 
+  const handleWheelZoom = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!imageUrl) return;
+
+    event.preventDefault();
+    const direction = event.deltaY < 0 ? 1 : -1;
+    setZoom(currentZoom => Math.min(
+      MAX_REVIEW_ZOOM,
+      Math.max(MIN_REVIEW_ZOOM, currentZoom + direction * REVIEW_ZOOM_STEP)
+    ));
+  };
+
   const imageScale = zoom / 100;
 
   return (
     <div className="min-h-0 flex flex-col rounded-lg border border-[#E9DFDB] bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-[#F2ECE5] px-3 py-2">
         <div className="text-xs font-bold text-[#674b2d]">{title}</div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" title="在图片区域滚动鼠标滚轮缩放">
           <ZoomOut size={14} className="text-[#8B7355]" />
-          <input
-            type="range"
-            min="50"
-            max="250"
-            step="10"
-            value={zoom}
-            onChange={(event) => setZoom(Number(event.target.value))}
-            className="w-24 accent-[#8B6F47]"
-            title={`${title}缩放`}
-          />
           <ZoomIn size={14} className="text-[#8B7355]" />
           <span className="w-10 text-right text-[10px] font-bold text-[#8B7355]">{zoom}%</span>
         </div>
       </div>
 
-      <div className="flex min-h-[260px] flex-1 items-center justify-center overflow-auto bg-[#FAF8F4] p-4">
+      <div
+        className="flex min-h-[260px] flex-1 items-center justify-center overflow-auto bg-[#FAF8F4] p-4"
+        onWheel={handleWheelZoom}
+      >
         {imageUrl ? (
           <img
             src={imageUrl}

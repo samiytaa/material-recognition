@@ -17,6 +17,7 @@ import {
 export default function Tab2Record(props: Tab2RecordProps) {
   const [reviewModalOpen, setReviewModalOpen] = React.useState(false);
   const [reviewRowId, setReviewRowId] = React.useState<number | null>(null);
+  const [focusedRowIndex, setFocusedRowIndex] = React.useState<number | null>(null);
 
   const {
     fileInputRef1,
@@ -44,7 +45,6 @@ export default function Tab2Record(props: Tab2RecordProps) {
     iconLibraryCount,
     handleBatchScreenshotUpload,
     onCellFileChange,
-    viewRowImage,
     deleteScreenshotFromRow,
     confirmRowIcon,
     returnRowIcon,
@@ -86,15 +86,24 @@ export default function Tab2Record(props: Tab2RecordProps) {
   }, [reviewCurrentIndex, reviewModalOpen, reviewRows]);
 
   const openReviewModal = () => {
-    const firstSelectedRow = reviewRows.find(row => selectedRowIds.includes(row.id));
-    if (!firstSelectedRow) {
-      alert('请先在当前表格中选择一行再进入校对模式。');
+    const firstReviewRow = reviewRows.find(row => selectedRowIds.includes(row.id)) ?? reviewRows[0];
+    if (!firstReviewRow) {
       return;
     }
 
-    setReviewRowId(firstSelectedRow.id);
+    setReviewRowId(firstReviewRow.id);
     setReviewModalOpen(true);
-    const originalIndex = recordList.findIndex(row => row.id === firstSelectedRow.id);
+    const originalIndex = recordList.findIndex(row => row.id === firstReviewRow.id);
+    addRecordLog(`进入校对模式：第 ${originalIndex + 1} 行`);
+  };
+
+  const openReviewModalForRow = (filteredRowIndex: number) => {
+    const row = filteredRecordList[filteredRowIndex];
+    if (!row) return;
+
+    setReviewRowId(row.id);
+    setReviewModalOpen(true);
+    const originalIndex = recordList.findIndex(record => record.id === row.id);
     addRecordLog(`进入校对模式：第 ${originalIndex + 1} 行`);
   };
 
@@ -212,9 +221,7 @@ export default function Tab2Record(props: Tab2RecordProps) {
             }}
             onToggleSelectAll={toggleSelectAll}
             onViewImage={(filteredRowIndex, type) => {
-              const rowId = filteredRecordList[filteredRowIndex].id;
-              const originalRowIndex = recordList.findIndex(r => r.id === rowId);
-              viewRowImage(originalRowIndex, type);
+              openReviewModalForRow(filteredRowIndex);
             }}
             onUploadImage={(filteredRowIndex, type) => {
               const rowId = filteredRecordList[filteredRowIndex].id;
@@ -249,8 +256,24 @@ export default function Tab2Record(props: Tab2RecordProps) {
               const originalRowIndex = recordList.findIndex(r => r.id === rowId);
               deleteScreenshotFromRow(originalRowIndex);
             }}
+            focusedRowIndex={focusedRowIndex}
+            onFocusRow={setFocusedRowIndex}
           />
         </div>
+
+        {/* 快捷键提示 */}
+        {filteredRecordList.length > 0 && (
+          <div className="mt-2 px-3 py-1.5 bg-[#FAF8F4] border border-[#DFD2BD]/40 rounded-lg">
+            <div className="flex items-center gap-4 text-[10px] text-[#8B6F47]">
+              <span className="font-semibold">快捷操作：</span>
+              <span>单击行 = 选中</span>
+              <span>双击行 = 校对</span>
+              <span>Enter = 确认</span>
+              <span>Backspace/R = 退回</span>
+              <span>↑/↓ = 切换行</span>
+            </div>
+          </div>
+        )}
       </Card>
 
       <RecordSidePanel
@@ -259,7 +282,7 @@ export default function Tab2Record(props: Tab2RecordProps) {
         pendingRecognitionCount={pendingRecognitionCount}
         exportReadyCount={exportReadyCount}
         confirmedExportReadyCount={confirmedExportReadyCount}
-        canReview={selectedRowIds.length > 0}
+        canReview={reviewRows.length > 0}
         onScreenshotCategoryChange={setSelectedScreenshotCategory}
         onBatchScreenshotUpload={handleBatchScreenshotUpload}
         onRunAiMatch={runAiMatch}

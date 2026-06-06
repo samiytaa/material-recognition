@@ -45,6 +45,8 @@ function getRowMatchedName(row: RecordRow): string | undefined {
   return row.matchedPropFileName || row.originalImageFileName;
 }
 
+const MAX_TAB2_RECORDS = 20;
+
 export function useTab2RecordController({
   recordList,
   setRecordList,
@@ -90,16 +92,27 @@ export function useTab2RecordController({
     updater: (tags: PropItem['tags']) => PropItem['tags']
   ): boolean => {
     const matchedName = getRowMatchedName(row);
-    if (!matchedName) return false;
+    if (!matchedName) {
+      addRecordLog(`[调试-标签更新] 失败: matchedName为空`);
+      return false;
+    }
+
+    addRecordLog(`[调试-标签更新] 查找matchedName: "${matchedName}"`);
 
     const hasMatch = propsList.some(
       prop => prop.name === matchedName || prop.name === getFileNameWithoutExtension(matchedName)
     );
-    if (!hasMatch) return false;
+    
+    if (!hasMatch) {
+      addRecordLog(`[调试-标签更新] 失败: 在propsList中未找到匹配`);
+      addRecordLog(`[调试-标签更新] propsList中的前5个名称: ${propsList.slice(0, 5).map(p => p.name).join(', ')}`);
+      return false;
+    }
 
     setPropsList(prev => {
       const updatedProps = prev.map(prop => {
         if (prop.name !== matchedName && prop.name !== getFileNameWithoutExtension(matchedName)) return prop;
+        addRecordLog(`[调试-标签更新] 成功匹配prop.name="${prop.name}"`);
         return {
           ...prop,
           tags: updater(prop.tags || [])
@@ -134,6 +147,13 @@ export function useTab2RecordController({
       return;
     }
 
+    const remainingRecordSlots = Math.max(MAX_TAB2_RECORDS - recordList.length, 0);
+    if (remainingRecordSlots === 0) {
+      addRecordLog(`⚠ Tab2 条目已达上限 ${MAX_TAB2_RECORDS} 个，本次未导入截图`);
+      alert(`Tab2 最多只能保留 ${MAX_TAB2_RECORDS} 个条目。\n\n当前已有 ${recordList.length} 个条目，无法继续上传截图。请先删除或导出部分条目后再追加。`);
+      return;
+    }
+
     const existingScreenshotNames = new Set(
       recordList
         .filter(row => row.screenshot && row.screenshotOriginalName)
@@ -154,23 +174,30 @@ export function useTab2RecordController({
       acceptedFiles.push(file);
     }
 
+    const overLimitCount = Math.max(acceptedFiles.length - remainingRecordSlots, 0);
+    const filesWithinLimit = acceptedFiles.slice(0, remainingRecordSlots);
+
     if (skippedDuplicateFiles.length > 0) {
       addRecordLog(`⚠ 检测到 ${skippedDuplicateFiles.length} 张重复截图，已自动跳过：${skippedDuplicateFiles.slice(0, 5).join('、')}${skippedDuplicateFiles.length > 5 ? '...' : ''}`);
     }
 
-    if (acceptedFiles.length === 0) {
+    if (overLimitCount > 0) {
+      addRecordLog(`⚠ Tab2 最多 ${MAX_TAB2_RECORDS} 个条目，当前已有 ${recordList.length} 个；本次仅导入前 ${filesWithinLimit.length} 张，跳过 ${overLimitCount} 张超出上限的截图`);
+    }
+
+    if (filesWithinLimit.length === 0) {
       addRecordLog('所有截图均为重复文件，未上传任何图片');
       alert(`所有截图均为重复文件，未上传任何图片。\n\n重复文件：\n${skippedDuplicateFiles.slice(0, 8).join('\n')}`);
       return;
     }
 
-    addRecordLog(`开始上传 ${acceptedFiles.length} 张游戏截图${skippedDuplicateFiles.length > 0 ? `（跳过 ${skippedDuplicateFiles.length} 张重复）` : ''}...`);
+    addRecordLog(`开始上传 ${filesWithinLimit.length} 张游戏截图${skippedDuplicateFiles.length > 0 ? `（跳过 ${skippedDuplicateFiles.length} 张重复）` : ''}${overLimitCount > 0 ? `（跳过 ${overLimitCount} 张超出上限）` : ''}...`);
 
     const newRecords: RecordRow[] = [];
     let nextId = recordList.length > 0 ? Math.max(...recordList.map(r => r.id)) + 1 : 0;
 
-    for (let i = 0; i < acceptedFiles.length; i++) {
-      const file = acceptedFiles[i];
+    for (let i = 0; i < filesWithinLimit.length; i++) {
+      const file = filesWithinLimit[i];
       const dataUrl = await readFileAsDataURL(file);
       const fileName = getFileNameWithoutExtension(file.name);
       const rowId = nextId++;
@@ -195,12 +222,12 @@ export function useTab2RecordController({
       saveTab2Screenshot(rowId, dataUrl).catch(error => {
         addRecordLog(`⚠ 第 ${rowId + 1} 行截图记忆保存失败: ${error}`);
       });
-      addRecordLog(`[${i + 1}/${acceptedFiles.length}] 导入游戏截图: ${file.name}`);
+      addRecordLog(`[${i + 1}/${filesWithinLimit.length}] 导入游戏截图: ${file.name}`);
     }
 
     setRecordList(prev => [...prev, ...newRecords]);
     addRecordLog(`✓ 成功添加 ${newRecords.length} 个${selectedScreenshotCategory}分类条目到表格（待识别）`);
-    alert(`成功上传 ${newRecords.length} 张截图！${skippedDuplicateFiles.length > 0 ? `\n已跳过重复：${skippedDuplicateFiles.length} 张` : ''}\n分类：${selectedScreenshotCategory}\n\n已生成 ${newRecords.length} 个新条目，请点击【一键识别】进行AI识别和icon匹配。`);
+    alert(`成功上传 ${newRecords.length} 张截图！${skippedDuplicateFiles.length > 0 ? `\n已跳过重复：${skippedDuplicateFiles.length} 张` : ''}${overLimitCount > 0 ? `\n因条目上限 ${MAX_TAB2_RECORDS} 个，已跳过超出部分：${overLimitCount} 张` : ''}\n分类：${selectedScreenshotCategory}\n\n已生成 ${newRecords.length} 个新条目，请点击【一键识别】进行AI识别和icon匹配。`);
   };
 
   // 筛选状态
@@ -373,6 +400,11 @@ export function useTab2RecordController({
       return;
     }
 
+    addRecordLog(`[调试-确认] 第 ${rowId + 1} 行信息:`);
+    addRecordLog(`[调试-确认]   - originalImageFileName: ${row.originalImageFileName}`);
+    addRecordLog(`[调试-确认]   - matchedPropFileName: ${row.matchedPropFileName}`);
+    addRecordLog(`[调试-确认]   - propName: ${row.propName}`);
+
     const updated = updateMatchedPropTags(
       row,
       (tags = []) => Array.from(new Set([...tags, 'AI匹配' as const, '已确认' as const]))
@@ -380,6 +412,7 @@ export function useTab2RecordController({
 
     if (!updated) {
       addRecordLog(`⚠ 第 ${rowId + 1} 行未找到对应Tab1 icon，无法写入确认标签`);
+      addRecordLog(`[调试-确认] 查找失败，matchedPropFileName = ${row.matchedPropFileName || row.originalImageFileName}`);
       return;
     }
 
@@ -392,6 +425,10 @@ export function useTab2RecordController({
       addRecordLog(`⚠ 第 ${rowId + 1} 行没有可退回的icon`);
       return;
     }
+
+    addRecordLog(`[调试-退回] 第 ${rowId + 1} 行信息:`);
+    addRecordLog(`[调试-退回]   - originalImageFileName: ${row.originalImageFileName}`);
+    addRecordLog(`[调试-退回]   - matchedPropFileName: ${row.matchedPropFileName}`);
 
     const updated = updateMatchedPropTags(
       row,
@@ -699,6 +736,7 @@ export function useTab2RecordController({
         if (result.success && result.color && result.iconIndex !== undefined && result.name) {
           if (result.iconIndex < 0 || result.iconIndex >= categoryIconLibrary.length) {
             addRecordLog(`[处理] ✗ 第 ${recordIndex + 1} 行: API返回的索引越界`);
+            addRecordLog(`[调试] 返回索引: ${result.iconIndex}, 分类库大小: ${categoryIconLibrary.length}`);
             failedList.push(`第 ${recordIndex + 1} 行 (原因: API返回索引无效)`);
             failCount++;
             updateRecognitionProgress(i + 1, successCount, failCount, `已完成: ${screenshotName}`, `✗ ${screenshotName}: 索引无效`);
@@ -708,6 +746,10 @@ export function useTab2RecordController({
           const matchedIcon = categoryIconLibrary[result.iconIndex];
           const recognizedName = result.name;
           const recognizedColor = result.color;
+          
+          // 添加调试日志
+          addRecordLog(`[调试] 返回索引: ${result.iconIndex}, 匹配icon名称: ${matchedIcon.name}, sourcePropName: ${matchedIcon.sourcePropName}`);
+          addRecordLog(`[调试] 分类库大小: ${categoryIconLibrary.length}, 完整库大小: ${iconLibrary.length}`);
           
           // 更新条目信息
           setRecordList(prev => {
@@ -731,11 +773,19 @@ export function useTab2RecordController({
           setPropsList(prev => {
             const updatedProps = prev.map(prop => {
               if (prop.name !== matchedIcon.sourcePropName) return prop;
+              addRecordLog(`[调试] 找到Tab1匹配项: prop.name=${prop.name}, 添加AI匹配标签`);
               return {
                 ...prop,
                 tags: Array.from(new Set([...(prop.tags || []), 'AI匹配' as const]))
               };
             });
+            
+            // 验证是否真的找到了匹配项
+            const foundMatch = updatedProps.some(prop => prop.name === matchedIcon.sourcePropName);
+            if (!foundMatch) {
+              addRecordLog(`[警告] ⚠ 未在Tab1中找到名称为 "${matchedIcon.sourcePropName}" 的icon`);
+            }
+            
             localStorage.setItem('savedProps', JSON.stringify(updatedProps.filter(prop => prop.image !== null)));
             return updatedProps;
           });
@@ -1050,7 +1100,7 @@ export function useTab2RecordController({
 
   // 统计信息
   const exportReadyCount = recordList.filter(
-    row => row.previewWithBase && row.outputName.trim() !== ''
+    row => row.previewWithBase && row.outputName && row.outputName.trim() !== ''
   ).length;
   const confirmedExportReadyCount = getConfirmedExportRows().length;
 

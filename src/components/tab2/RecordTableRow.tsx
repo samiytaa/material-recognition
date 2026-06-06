@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bot, CheckCircle, RotateCcw, ZoomIn, X, Trash2 } from 'lucide-react';
+import { Bot, CheckCircle, RotateCcw, ZoomIn, Trash2 } from 'lucide-react';
 import { RecordRow, ScreenshotPrimaryCategory } from '../../types';
 import { SCREENSHOT_CATEGORY_OPTIONS, getIconPrimaryCategory } from '../../utils/tab2Helper';
 import { MapGroup } from '../../hooks';
@@ -12,7 +12,9 @@ interface RecordTableRowProps {
   selectedGroupId: string;
   enableContainScale: boolean; // 加底等比缩放开关
   isSelected: boolean;
+  isFocused: boolean;
   onToggleSelection: (rowId: number, event?: React.MouseEvent) => void;
+  onFocusRow: () => void;
   onViewImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUploadImage: (rowId: number, type: 'original' | 'screenshot') => void;
   onUpdateRow: (rowId: number, updates: Partial<RecordRow>) => void;
@@ -20,42 +22,6 @@ interface RecordTableRowProps {
   onConfirmIcon: (rowId: number) => void;
   onReturnIcon: (rowId: number) => void;
   onDeleteScreenshot?: (rowId: number) => void;
-}
-
-// 放大预览弹窗组件
-function ImageZoomModal({ imageUrl, imageName, onClose }: { imageUrl: string; imageName: string; onClose: () => void }) {
-  return (
-    <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-8"
-      onClick={onClose}
-    >
-      <div 
-        className="relative max-w-[90vw] max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 标题栏 */}
-        <div className="px-4 py-3 bg-[#FAF8F4] border-b border-[#E9DFDB] flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#674b2d]">{imageName}</h3>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-            title="关闭"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        
-        {/* 图片内容 */}
-        <div className="p-4 overflow-auto max-h-[calc(90vh-60px)]">
-          <img 
-            src={imageUrl}
-            alt={imageName}
-            className="max-w-full h-auto object-contain"
-          />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function RecordTableRow({
@@ -66,7 +32,9 @@ export default function RecordTableRow({
   selectedGroupId,
   enableContainScale, // 加底等比缩放开关
   isSelected,
+  isFocused,
   onToggleSelection,
+  onFocusRow,
   onViewImage,
   onUploadImage,
   onUpdateRow,
@@ -76,7 +44,11 @@ export default function RecordTableRow({
   onDeleteScreenshot,
 }: RecordTableRowProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // 双击计时器
+  const clickTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const clickCountRef = React.useRef(0);
 
   // 当原图、底色、底图组或缩放模式改变时，自动生成预览并更新到row.previewWithBase
   useEffect(() => {
@@ -163,13 +135,73 @@ export default function RecordTableRow({
     baseImg.src = basemapItem.image;
   }, [row.originalImage, row.baseColor, selectedGroupId, basemapGroups, enableContainScale, rowIndex, onUpdateRow]);
 
+  // 整行点击处理：单击选中，双击进入校对
+  const handleRowClick = (e: React.MouseEvent) => {
+    // 如果点击的是输入框、选择框、按钮等交互元素，不处理行点击
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === 'INPUT' || 
+      target.tagName === 'SELECT' || 
+      target.tagName === 'BUTTON' ||
+      target.closest('button') ||
+      target.closest('input[type="checkbox"]')
+    ) {
+      return;
+    }
+
+    clickCountRef.current++;
+    
+    if (clickCountRef.current === 1) {
+      // 第一次点击：设置定时器，延迟判断是单击还是双击
+      clickTimerRef.current = setTimeout(() => {
+        // 单击：选中/取消选中当前行
+        onToggleSelection(rowIndex, e);
+        onFocusRow();
+        clickCountRef.current = 0;
+      }, 250);
+    } else if (clickCountRef.current === 2) {
+      // 第二次点击：清除定时器，执行双击操作
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+      // 双击：进入校对
+      onViewImage(rowIndex, 'screenshot');
+      clickCountRef.current = 0;
+    }
+  };
+
+  // 组件卸载时清理定时器
+  React.useEffect(() => {
+    return () => {
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
-      <tr className="hover:bg-[#FDFBF8]/80 group transition-all">
+      <tr 
+        className={`group transition-all cursor-pointer ${
+          isFocused 
+            ? 'bg-blue-50/60 ring-2 ring-blue-300 ring-inset' 
+            : isSelected
+            ? 'bg-amber-50/40'
+            : 'hover:bg-[#FDFBF8]/80'
+        }`}
+        onClick={handleRowClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         {/* 选择框列 */}
         <td 
-          className="p-2 border border-[#F2ECE5] text-center w-[40px] cursor-pointer"
-          onClick={(e) => onToggleSelection(rowIndex, e)}
+          className="p-2 border border-[#F2ECE5] text-center w-[40px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelection(rowIndex, e);
+            onFocusRow();
+          }}
         >
           <input
             type="checkbox"
@@ -193,7 +225,8 @@ export default function RecordTableRow({
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat'
             } : undefined}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (!row.screenshot) {
                 onUploadImage(rowIndex, 'screenshot');
               }
@@ -208,10 +241,10 @@ export default function RecordTableRow({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setZoomImage({ url: row.screenshot!, name: `${row.propName || '未命名'} - 游戏截图` });
+                    onViewImage(rowIndex, 'screenshot');
                   }}
                   className="absolute top-1 right-1 w-6 h-6 bg-blue-500/90 hover:bg-blue-600 text-white rounded-md opacity-0 group-hover/screenshot:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
-                  title="放大查看"
+                  title="进入校对"
                 >
                   <ZoomIn size={12} />
                 </button>
@@ -247,7 +280,8 @@ export default function RecordTableRow({
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat'
             } : undefined}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (!row.originalImage) {
                 onUploadImage(rowIndex, 'original');
               }
@@ -261,74 +295,15 @@ export default function RecordTableRow({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setZoomImage({ url: row.originalImage!, name: `${row.propName || '未命名'} - 道具icon` });
+                  onViewImage(rowIndex, 'original');
                 }}
                 className="absolute top-1 right-1 w-6 h-6 bg-blue-500/90 hover:bg-blue-600 text-white rounded-md opacity-0 group-hover/icon:opacity-100 transition-opacity flex items-center justify-center shadow-md z-10"
-                title="放大查看"
+                title="进入校对"
               >
                 <ZoomIn size={12} />
               </button>
             )}
           </div>
-        </td>
-
-        {/* 道具名 */}
-        <td className="p-2 border border-[#F2ECE5]">
-          <input
-            type="text"
-            value={row.propName}
-            onChange={(e) => {
-              const val = e.target.value;
-              onUpdateRow(rowIndex, {
-                propName: val,
-                outputName: val
-              });
-            }}
-            placeholder="双击修改道具名"
-            className="w-full text-center text-xs px-2 py-1.5 bg-transparent border border-transparent hover:border-[#DFD2BD]/60 focus:border-gold-shiny focus:bg-[#FFFDF7] outline-none text-[#674b2d] font-semibold rounded transition-all"
-          />
-        </td>
-
-        {/* 底色 */}
-        <td className="p-2 border border-[#F2ECE5]">
-          <select
-            value={row.baseColor}
-            onChange={(e) => {
-              const val = e.target.value;
-              onUpdateRow(rowIndex, {
-                baseColor: val
-              });
-            }}
-            className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
-          >
-            {availableColors.map(color => (
-              <option key={color} value={color}>{color}</option>
-            ))}
-          </select>
-        </td>
-
-        {/* 分类：待识别截图可选一级分类，识别后显示Tab1同步分类 */}
-        <td className="p-2 border border-[#F2ECE5]">
-          {!row.originalImage && row.screenshot ? (
-            <select
-              value={row.screenshotCategory || '其他'}
-              onChange={(e) => {
-                onUpdateRow(rowIndex, {
-                  screenshotCategory: e.target.value as ScreenshotPrimaryCategory
-                });
-              }}
-              className="w-full text-center text-xs px-1 py-1.5 bg-white border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
-              title="选择截图一级分类，AI识别时只在该分类Icon池中匹配"
-            >
-              {SCREENSHOT_CATEGORY_OPTIONS.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          ) : (
-            <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
-              {getIconPrimaryCategory(row.propCategory || row.screenshotCategory || '其他', row.propType)}
-            </div>
-          )}
         </td>
 
         {/* 确认状态 */}
@@ -351,32 +326,127 @@ export default function RecordTableRow({
             {iconStatus === 'ai' && (
               <div className="flex gap-1">
                 <button
-                  onClick={() => onConfirmIcon(rowIndex)}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white transition hover:bg-emerald-700"
-                  title="确认此行icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmIcon(rowIndex);
+                  }}
+                  className="inline-flex items-center justify-center rounded bg-emerald-600 text-white transition hover:bg-emerald-700 relative group/confirm"
+                  style={{
+                    height: '24px',
+                    width: isHovered ? 'auto' : '24px',
+                    minWidth: '24px',
+                    padding: isHovered ? '0 8px' : '0',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="确认此 icon"
                 >
                   <CheckCircle size={12} />
+                  {isHovered && <span className="ml-1 text-[10px] font-bold whitespace-nowrap">确认</span>}
                 </button>
                 <button
-                  onClick={() => onReturnIcon(rowIndex)}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600"
-                  title="退回此行icon并重新识别"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReturnIcon(rowIndex);
+                  }}
+                  className="inline-flex items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600 relative group/return"
+                  style={{
+                    height: '24px',
+                    width: isHovered ? 'auto' : '24px',
+                    minWidth: '24px',
+                    padding: isHovered ? '0 8px' : '0',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="退回此 icon 并重新识别"
                 >
                   <RotateCcw size={12} />
+                  {isHovered && <span className="ml-1 text-[10px] font-bold whitespace-nowrap">退回</span>}
                 </button>
               </div>
             )}
 
             {iconStatus === 'confirmed' && (
               <button
-                onClick={() => onReturnIcon(rowIndex)}
-                className="inline-flex h-6 w-6 items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600"
-                title="退回此行icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReturnIcon(rowIndex);
+                }}
+                className="inline-flex items-center justify-center rounded bg-amber-500 text-white transition hover:bg-amber-600"
+                style={{
+                  height: '24px',
+                  width: isHovered ? 'auto' : '24px',
+                  minWidth: '24px',
+                  padding: isHovered ? '0 8px' : '0',
+                  transition: 'all 0.2s ease'
+                }}
+                title="退回此 icon"
               >
                 <RotateCcw size={12} />
+                {isHovered && <span className="ml-1 text-[10px] font-bold whitespace-nowrap">退回</span>}
               </button>
             )}
           </div>
+        </td>
+
+        {/* 道具名 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <input
+            type="text"
+            value={row.propName}
+            onChange={(e) => {
+              const val = e.target.value;
+              onUpdateRow(rowIndex, {
+                propName: val,
+                outputName: val
+              });
+            }}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="双击修改道具名"
+            className="w-full text-center text-xs px-2 py-1.5 bg-transparent border border-transparent hover:border-[#DFD2BD]/60 focus:border-gold-shiny focus:bg-[#FFFDF7] outline-none text-[#674b2d] font-semibold rounded transition-all"
+          />
+        </td>
+
+        {/* 底色 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          <select
+            value={row.baseColor}
+            onChange={(e) => {
+              const val = e.target.value;
+              onUpdateRow(rowIndex, {
+                baseColor: val
+              });
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-center text-xs px-1 py-1.5 bg-transparent border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
+          >
+            {availableColors.map(color => (
+              <option key={color} value={color}>{color}</option>
+            ))}
+          </select>
+        </td>
+
+        {/* 分类：待识别截图可选一级分类，识别后显示Tab1同步分类 */}
+        <td className="p-2 border border-[#F2ECE5]">
+          {!row.originalImage && row.screenshot ? (
+            <select
+              value={row.screenshotCategory || '其他'}
+              onChange={(e) => {
+                onUpdateRow(rowIndex, {
+                  screenshotCategory: e.target.value as ScreenshotPrimaryCategory
+                });
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full text-center text-xs px-1 py-1.5 bg-white border border-[#E9DFDB]/60 rounded outline-none font-bold text-[#674b2d] focus:border-gold-shiny focus:bg-[#FFFDF7]"
+              title="选择截图一级分类，AI识别时只在该分类Icon池中匹配"
+            >
+              {SCREENSHOT_CATEGORY_OPTIONS.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="w-full text-center text-xs px-2 py-1.5 bg-[#F9F6F2] border border-[#E9DFDB]/40 rounded font-bold text-[#8B6F47] cursor-not-allowed">
+              {getIconPrimaryCategory(row.propCategory || row.screenshotCategory || '其他', row.propType)}
+            </div>
+          )}
         </td>
 
         {/* 加底预览 */}
@@ -411,15 +481,6 @@ export default function RecordTableRow({
           />
         </td>
       </tr>
-      
-      {/* 放大预览弹窗 */}
-      {zoomImage && (
-        <ImageZoomModal
-          imageUrl={zoomImage.url}
-          imageName={zoomImage.name}
-          onClose={() => setZoomImage(null)}
-        />
-      )}
     </>
   );
 }
